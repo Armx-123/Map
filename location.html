@@ -3,105 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Location & Device Finder</title>
+    <title>Triangulation Map</title>
+    
+    <!-- Load Leaflet.js CSS and JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <style>
         body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
         #output { margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 8px; display: none; }
         .error { color: #d32f2f; background: #ffebee; }
-        .map-link { display: inline-block; margin-top: 10px; padding: 8px 12px; background: #1a73e8; color: white; text-decoration: none; border-radius: 4px; }
-        iframe { width: 100%; height: 300px; border: 0; margin-top: 15px; border-radius: 8px; }
-        .device-info { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #ccc; }
+        
+        /* Map container must have a defined height to render */
+        #map { width: 100%; height: 400px; margin-top: 15px; border-radius: 8px; display: none; z-index: 1; }
     </style>
 </head>
 <body>
 
-    <h2>System & Location Finder</h2>
-    <button id="locateBtn">Get System & Location Info</button>
+    <h2>Multi-Sample Location Triangulation</h2>
+    <p>This will measure your location 5 times and map the overlap.</p>
+    <button id="locateBtn">Start 5-Point Measurement</button>
     
     <div id="output"></div>
+    <div id="map"></div>
 
     <script>
         const button = document.getElementById('locateBtn');
         const output = document.getElementById('output');
-
-        // Function to analyze the browser and determine OS/Device
-        function getDeviceDetails() {
-            const ua = navigator.userAgent;
-            let os = "Unknown OS";
-            let device = "Desktop"; // Default assumption
-
-            // 1. Detect Operating System
-            if (/Windows/i.test(ua)) {
-                os = "Windows";
-            } else if (/Android/i.test(ua)) {
-                os = "Android";
-            } else if (/iPhone|iPod/.test(ua)) {
-                os = "iOS (Apple)";
-            } else if (/iPad/.test(ua)) {
-                os = "iPadOS (Apple)";
-            } else if (/Mac/i.test(ua)) {
-                // Workaround for iPads on iOS 13+ that pretend to be Macs
-                if (navigator.maxTouchPoints && navigator.maxTouchPoints > 2) {
-                    os = "iPadOS (Apple)";
-                } else {
-                    os = "macOS (Apple)";
-                }
-            } else if (/Linux/i.test(ua)) {
-                os = "Linux";
-            }
-
-            // 2. Detect Device Type (Mobile/Tablet vs Desktop)
-            // If the string contains Mobi, Android, or an iOS device, it's mobile
-            if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua) || os === "iPadOS (Apple)") {
-                device = "Mobile / Tablet";
-            }
-
-            return { os, device };
-        }
+        const mapContainer = document.getElementById('map');
+        
+        let samples = [];
+        let mapInstance = null;
+        let watchId = null; // Variable to hold the continuous stream ID
 
         button.addEventListener('click', () => {
-            const systemInfo = getDeviceDetails();
-            const systemHtml = `
-                <div class="device-info">
-                    <strong>Device Type:</strong> ${systemInfo.device} <br>
-                    <strong>Operating System:</strong> ${systemInfo.os}
-                </div>
-            `;
-
             if (!navigator.geolocation) {
-                showOutput(systemHtml + 'Geolocation is not supported by your browser.', true);
+                showOutput('Geolocation is not supported by your browser.', true);
                 return;
             }
 
-            showOutput(systemHtml + 'Locating… please allow the browser prompt.');
+            // Reset UI for new measurements
+            samples = [];
+            button.disabled = true;
+            mapContainer.style.display = 'none';
+            if (mapInstance) {
+                mapInstance.remove();
+                mapInstance = null;
+            }
 
-            navigator.geolocation.getCurrentPosition(
+            showOutput('Opening location stream... Please allow the prompt once.');
+
+            // Start a continuous stream. This guarantees only ONE prompt.
+            watchId = navigator.geolocation.watchPosition(
                 (position) => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    const accuracy = Math.round(position.coords.accuracy);
+                    // Check if we already have 5 samples to prevent over-collecting
+                    if (samples.length >= 5) return;
 
-                    const mapsUrl = `https://www.google.com/maps?q=${lat},${lon}`;
-                    const embedUrl = `https://maps.google.com/maps?q=${lat},${lon}&z=15&output=embed`;
+                    samples.push({
+                        lat: position.coords.latitude,
+                        lon: position.coords.longitude,
+                        accuracy: position.coords.accuracy
+                    });
 
-                    showOutput(`
-                        ${systemHtml}
-                        <strong>Latitude:</strong> ${lat} <br>
-                        <strong>Longitude:</strong> ${lon} <br>
-                        <em>Location Accuracy: within ${accuracy} meters</em><br>
-                        <a href="${mapsUrl}" target="_blank" class="map-link">Open in Google Maps ↗</a>
-                        <br>
-                        <iframe src="${embedUrl}" allowfullscreen="" loading="lazy"></iframe>
-                    `);
-                }, 
+                    showOutput(`Acquiring measurement ${samples.length} of 5...`);
+
+                    // Once we hit 5 samples, shut down the stream and draw the map
+                    if (samples.length === 5) {
+                        navigator.geolocation.clearWatch(watchId); // Stops the GPS tracking
+                        showOutput('5 samples collected. Rendering map...');
+                        renderMap();
+                        button.disabled = false;
+                    }
+                },
                 (error) => {
                     let errorMessage = 'An unknown error occurred.';
-                    if (error.code === error.PERMISSION_DENIED) errorMessage = 'You denied the request for Geolocation.';
-                    if (error.code === error.POSITION_UNAVAILABLE) errorMessage = 'Location information is unavailable.';
-                    if (error.code === error.TIMEOUT) errorMessage = 'The request to get user location timed out.';
-                    showOutput(systemHtml + errorMessage, true);
-                }, 
+                    if (error.code === error.PERMISSION_DENIED) errorMessage = 'Permission denied.';
+                    if (error.code === error.POSITION_UNAVAILABLE) errorMessage = 'Location unavailable.';
+                    if (error.code === error.TIMEOUT) errorMessage = 'Location request timed out.';
+                    showOutput(errorMessage, true);
+                    
+                    if (watchId) navigator.geolocation.clearWatch(watchId);
+                    button.disabled = false;
+                },
                 {
                     enableHighAccuracy: true,
                     timeout: 10000,
@@ -109,6 +93,43 @@
                 }
             );
         });
+
+        // Initialize Leaflet Map and draw circles
+        function renderMap() {
+            mapContainer.style.display = 'block';
+
+            const centerLat = samples[0].lat;
+            const centerLon = samples[0].lon;
+
+            mapInstance = L.map('map').setView([centerLat, centerLon], 16);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(mapInstance);
+
+            samples.forEach((sample) => {
+                L.circle([sample.lat, sample.lon], {
+                    color: '#1a73e8',
+                    fillColor: '#1a73e8',
+                    fillOpacity: 0.2, 
+                    radius: sample.accuracy 
+                }).addTo(mapInstance);
+                
+                L.circle([sample.lat, sample.lon], {
+                    color: 'red',
+                    fillColor: 'red',
+                    fillOpacity: 1,
+                    radius: 1
+                }).addTo(mapInstance);
+            });
+
+            showOutput(`
+                <strong>Analysis Complete</strong><br>
+                Look for the darkest blue area on the map. This represents the intersection where all 5 accuracy radii overlap. <br>
+                <small>The red dots represent the center point of each individual measurement.</small>
+            `);
+        }
 
         function showOutput(message, isError = false) {
             output.style.display = 'block';
