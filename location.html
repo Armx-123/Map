@@ -3,142 +3,205 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Triangulation Map</title>
+    <title>Triangulated Location Dashboard</title>
     
-    <!-- Load Leaflet.js CSS and JS -->
+    <!-- Leaflet.js -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
-        #output { margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 8px; display: none; }
-        .error { color: #d32f2f; background: #ffebee; }
+        body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background: #f8f9fa; color: #333; }
+        .header { text-align: center; margin-bottom: 20px; }
+        button { padding: 12px 24px; font-size: 16px; cursor: pointer; background: #1a73e8; color: white; border: none; border-radius: 6px; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
         
-        /* Map container must have a defined height to render */
-        #map { width: 100%; height: 400px; margin-top: 15px; border-radius: 8px; display: none; z-index: 1; }
+        /* Layout Grid */
+        .dashboard { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
+        .panel-data { flex: 1; min-width: 300px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .panel-map { flex: 1.5; min-width: 300px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        
+        #map { width: 100%; height: 450px; background: #eaeaea; border-radius: 4px; }
+        
+        .status { margin-top: 15px; padding: 10px; background: #e8f0fe; color: #1a73e8; border-radius: 4px; font-weight: bold; display: none; }
+        .error { background: #ffebee; color: #d32f2f; }
+        
+        .data-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .data-section h3 { margin-top: 0; font-size: 16px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+        .coord-list { font-family: monospace; font-size: 13px; color: #666; line-height: 1.6; }
+        .highlight { font-weight: bold; color: #1a73e8; font-size: 15px; }
+        .map-link { display: inline-block; margin-top: 10px; padding: 8px 12px; background: #34a853; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h2>Multi-Sample Location Triangulation</h2>
-    <p>This will measure your location 5 times and map the overlap.</p>
-    <button id="locateBtn">Start 5-Point Measurement</button>
-    
-    <div id="output"></div>
-    <div id="map"></div>
+    <div class="header">
+        <h2>Advanced Location Triangulation</h2>
+        <button id="startBtn">Start 5-Point Analysis</button>
+        <div id="statusMsg" class="status"></div>
+    </div>
+
+    <div class="dashboard">
+        <!-- Left Side: Data -->
+        <div class="panel-data">
+            <div class="data-section" id="deviceData">
+                <h3>System Data</h3>
+                <div id="deviceOutput">Waiting for analysis...</div>
+            </div>
+
+            <div class="data-section">
+                <h3>Raw Sample Data (5 Points)</h3>
+                <div id="rawCoordinates" class="coord-list">Waiting for samples...</div>
+            </div>
+
+            <div class="data-section">
+                <h3>Calculated True Center</h3>
+                <div id="calculatedOutput">Averaging coordinates...</div>
+            </div>
+        </div>
+
+        <!-- Right Side: Map -->
+        <div class="panel-map">
+            <h3>Consolidated Location Map</h3>
+            <div id="map"></div>
+        </div>
+    </div>
 
     <script>
-        const button = document.getElementById('locateBtn');
-        const output = document.getElementById('output');
-        const mapContainer = document.getElementById('map');
+        const startBtn = document.getElementById('startBtn');
+        const statusMsg = document.getElementById('statusMsg');
+        const deviceOutput = document.getElementById('deviceOutput');
+        const rawCoordinates = document.getElementById('rawCoordinates');
+        const calculatedOutput = document.getElementById('calculatedOutput');
         
         let samples = [];
         let mapInstance = null;
-        let watchId = null; // Variable to hold the continuous stream ID
+        let watchId = null;
 
-        button.addEventListener('click', () => {
+        // Device Detection Logic
+        function getDeviceDetails() {
+            const ua = navigator.userAgent;
+            let os = "Unknown OS";
+            let device = "Desktop";
+
+            if (/Windows/i.test(ua)) os = "Windows";
+            else if (/Android/i.test(ua)) os = "Android";
+            else if (/iPhone|iPod/.test(ua)) os = "iOS";
+            else if (/iPad/.test(ua)) os = "iPadOS";
+            else if (/Mac/i.test(ua)) {
+                os = (navigator.maxTouchPoints && navigator.maxTouchPoints > 2) ? "iPadOS" : "macOS";
+            }
+            else if (/Linux/i.test(ua)) os = "Linux";
+
+            if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua) || os === "iPadOS") device = "Mobile / Tablet";
+
+            return { os, device };
+        }
+
+        function showStatus(message, isError = false) {
+            statusMsg.style.display = 'block';
+            statusMsg.innerHTML = message;
+            statusMsg.className = isError ? 'status error' : 'status';
+        }
+
+        startBtn.addEventListener('click', () => {
             if (!navigator.geolocation) {
-                showOutput('Geolocation is not supported by your browser.', true);
+                showStatus('Geolocation is not supported by your browser.', true);
                 return;
             }
 
-            // Reset UI for new measurements
+            // Populate Device Data
+            const sys = getDeviceDetails();
+            deviceOutput.innerHTML = `<strong>Device:</strong> ${sys.device} <br><strong>OS:</strong> ${sys.os}`;
+
+            // Reset App State
             samples = [];
-            button.disabled = true;
-            mapContainer.style.display = 'none';
+            rawCoordinates.innerHTML = '';
+            calculatedOutput.innerHTML = 'Averaging coordinates...';
+            startBtn.disabled = true;
             if (mapInstance) {
                 mapInstance.remove();
                 mapInstance = null;
             }
 
-            showOutput('Opening location stream... Please allow the prompt once.');
+            showStatus('Opening secure location stream... Please allow the prompt.');
 
-            // Start a continuous stream. This guarantees only ONE prompt.
             watchId = navigator.geolocation.watchPosition(
                 (position) => {
-                    // Check if we already have 5 samples to prevent over-collecting
                     if (samples.length >= 5) return;
 
                     samples.push({
                         lat: position.coords.latitude,
                         lon: position.coords.longitude,
-                        accuracy: position.coords.accuracy
+                        acc: position.coords.accuracy
                     });
 
-                    showOutput(`Acquiring measurement ${samples.length} of 5...`);
+                    // Update UI with raw data as it comes in
+                    rawCoordinates.innerHTML += `Sample ${samples.length}: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)} (±${Math.round(position.coords.accuracy)}m)<br>`;
+                    showStatus(`Acquiring measurement ${samples.length} of 5...`);
 
-                    // Once we hit 5 samples, shut down the stream and draw the map
                     if (samples.length === 5) {
-                        navigator.geolocation.clearWatch(watchId); // Stops the GPS tracking
-                        showOutput('5 samples collected. Rendering map...');
-                        renderMap();
-                        button.disabled = false;
+                        navigator.geolocation.clearWatch(watchId);
+                        showStatus('Analysis complete. Rendering interface.');
+                        processDataAndMap();
+                        startBtn.disabled = false;
                     }
                 },
                 (error) => {
-                    let errorMessage = 'An unknown error occurred.';
-                    if (error.code === error.PERMISSION_DENIED) errorMessage = 'Permission denied.';
-                    if (error.code === error.POSITION_UNAVAILABLE) errorMessage = 'Location unavailable.';
-                    if (error.code === error.TIMEOUT) errorMessage = 'Location request timed out.';
-                    showOutput(errorMessage, true);
-                    
+                    let errMsg = 'Unknown error.';
+                    if (error.code === 1) errMsg = 'Permission denied by user.';
+                    if (error.code === 2) errMsg = 'Location unavailable. Check device GPS settings.';
+                    if (error.code === 3) errMsg = 'Location request timed out.';
+                    showStatus(errMsg, true);
                     if (watchId) navigator.geolocation.clearWatch(watchId);
-                    button.disabled = false;
+                    startBtn.disabled = false;
                 },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
             );
         });
 
-        // Initialize Leaflet Map and draw circles
-        function renderMap() {
-            mapContainer.style.display = 'block';
+        function processDataAndMap() {
+            // 1. Math: Calculate the Centroid (Mean Center)
+            const sumLat = samples.reduce((acc, val) => acc + val.lat, 0);
+            const sumLon = samples.reduce((acc, val) => acc + val.lon, 0);
+            const sumAcc = samples.reduce((acc, val) => acc + val.acc, 0);
 
-            const centerLat = samples[0].lat;
-            const centerLon = samples[0].lon;
+            const avgLat = sumLat / 5;
+            const avgLon = sumLon / 5;
+            const avgAcc = sumAcc / 5;
 
-            mapInstance = L.map('map').setView([centerLat, centerLon], 16);
+            const mapsUrl = `https://www.google.com/maps?q=${avgLat},${avgLon}`;
+
+            // 2. Output the calculated data
+            calculatedOutput.innerHTML = `
+                <span class="highlight">LAT: ${avgLat.toFixed(7)}</span><br>
+                <span class="highlight">LON: ${avgLon.toFixed(7)}</span><br>
+                <em>Est. Radius: ±${Math.round(avgAcc)} meters</em><br>
+                <a href="${mapsUrl}" target="_blank" class="map-link">Open in Google Maps ↗</a>
+            `;
+
+            // 3. Render the Map
+            mapInstance = L.map('map').setView([avgLat, avgLon], 17);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '© OpenStreetMap contributors'
             }).addTo(mapInstance);
 
-            samples.forEach((sample) => {
-                L.circle([sample.lat, sample.lon], {
-                    color: '#1a73e8',
-                    fillColor: '#1a73e8',
-                    fillOpacity: 0.2, 
-                    radius: sample.accuracy 
-                }).addTo(mapInstance);
-                
-                L.circle([sample.lat, sample.lon], {
-                    color: 'red',
-                    fillColor: 'red',
-                    fillOpacity: 1,
-                    radius: 1
-                }).addTo(mapInstance);
-            });
+            // Draw the consolidated area (Average Accuracy)
+            L.circle([avgLat, avgLon], {
+                color: '#1a73e8',
+                fillColor: '#1a73e8',
+                fillOpacity: 0.3,
+                radius: avgAcc
+            }).addTo(mapInstance);
 
-            showOutput(`
-                <strong>Analysis Complete</strong><br>
-                Look for the darkest blue area on the map. This represents the intersection where all 5 accuracy radii overlap. <br>
-                <small>The red dots represent the center point of each individual measurement.</small>
-            `);
-        }
-
-        function showOutput(message, isError = false) {
-            output.style.display = 'block';
-            output.innerHTML = message;
-            if (isError) {
-                output.classList.add('error');
-            } else {
-                output.classList.remove('error');
-            }
+            // Draw the exact center dot
+            L.circle([avgLat, avgLon], {
+                color: '#d32f2f',
+                fillColor: '#d32f2f',
+                fillOpacity: 1,
+                radius: 2 // Tiny red dot
+            }).addTo(mapInstance);
         }
     </script>
 </body>
