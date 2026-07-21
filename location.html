@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>High-Precision Location Finder</title>
+    <title>Location & Device Finder</title>
     <style>
         body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
@@ -11,12 +11,13 @@
         .error { color: #d32f2f; background: #ffebee; }
         .map-link { display: inline-block; margin-top: 10px; padding: 8px 12px; background: #1a73e8; color: white; text-decoration: none; border-radius: 4px; }
         iframe { width: 100%; height: 300px; border: 0; margin-top: 15px; border-radius: 8px; }
+        .device-info { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #ccc; }
     </style>
 </head>
 <body>
 
-    <h2>High-Precision Location Finder</h2>
-    <button id="locateBtn">Get Precise Location</button>
+    <h2>System & Location Finder</h2>
+    <button id="locateBtn">Get System & Location Info</button>
     
     <div id="output"></div>
 
@@ -24,52 +25,87 @@
         const button = document.getElementById('locateBtn');
         const output = document.getElementById('output');
 
+        // Function to analyze the browser and determine OS/Device
+        function getDeviceDetails() {
+            const ua = navigator.userAgent;
+            let os = "Unknown OS";
+            let device = "Desktop"; // Default assumption
+
+            // 1. Detect Operating System
+            if (/Windows/i.test(ua)) {
+                os = "Windows";
+            } else if (/Android/i.test(ua)) {
+                os = "Android";
+            } else if (/iPhone|iPod/.test(ua)) {
+                os = "iOS (Apple)";
+            } else if (/iPad/.test(ua)) {
+                os = "iPadOS (Apple)";
+            } else if (/Mac/i.test(ua)) {
+                // Workaround for iPads on iOS 13+ that pretend to be Macs
+                if (navigator.maxTouchPoints && navigator.maxTouchPoints > 2) {
+                    os = "iPadOS (Apple)";
+                } else {
+                    os = "macOS (Apple)";
+                }
+            } else if (/Linux/i.test(ua)) {
+                os = "Linux";
+            }
+
+            // 2. Detect Device Type (Mobile/Tablet vs Desktop)
+            // If the string contains Mobi, Android, or an iOS device, it's mobile
+            if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua) || os === "iPadOS (Apple)") {
+                device = "Mobile / Tablet";
+            }
+
+            return { os, device };
+        }
+
         button.addEventListener('click', () => {
+            const systemInfo = getDeviceDetails();
+            const systemHtml = `
+                <div class="device-info">
+                    <strong>Device Type:</strong> ${systemInfo.device} <br>
+                    <strong>Operating System:</strong> ${systemInfo.os}
+                </div>
+            `;
+
             if (!navigator.geolocation) {
-                showOutput('Geolocation is not supported by your browser.', true);
+                showOutput(systemHtml + 'Geolocation is not supported by your browser.', true);
                 return;
             }
 
-            showOutput('Acquiring satellite/Wi-Fi lock… Please wait (this can take a few seconds).');
+            showOutput(systemHtml + 'Locating… please allow the browser prompt.');
 
-            // Using watchPosition instead of getCurrentPosition allows the browser 
-            // to update us as the accuracy improves over a few seconds.
-            const watchId = navigator.geolocation.watchPosition(
+            navigator.geolocation.getCurrentPosition(
                 (position) => {
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
                     const accuracy = Math.round(position.coords.accuracy);
 
                     const mapsUrl = `https://www.google.com/maps?q=${lat},${lon}`;
-                    const embedUrl = `https://maps.google.com/maps?q=${lat},${lon}&z=19&output=embed`; // &z=19 forces high zoom
+                    const embedUrl = `https://maps.google.com/maps?q=${lat},${lon}&z=15&output=embed`;
 
                     showOutput(`
+                        ${systemHtml}
                         <strong>Latitude:</strong> ${lat} <br>
                         <strong>Longitude:</strong> ${lon} <br>
-                        <em>Current Accuracy: within ${accuracy} meters</em><br>
-                        <small style="color: #666;">(If accuracy is high, we will stop watching automatically)</small><br>
+                        <em>Location Accuracy: within ${accuracy} meters</em><br>
                         <a href="${mapsUrl}" target="_blank" class="map-link">Open in Google Maps ↗</a>
                         <br>
                         <iframe src="${embedUrl}" allowfullscreen="" loading="lazy"></iframe>
                     `);
-
-                    // If accuracy drops below 20 meters, we consider it a solid GPS lock and stop watching to save battery
-                    if (accuracy <= 20) {
-                        navigator.geolocation.clearWatch(watchId);
-                    }
                 }, 
                 (error) => {
-                    let errorMessage = 'An error occurred while getting location.';
-                    if (error.code === error.PERMISSION_DENIED) errorMessage = 'Permission denied.';
-                    if (error.code === error.POSITION_UNAVAILABLE) errorMessage = 'Location unavailable. Ensure device GPS/Location Services are turned on.';
-                    if (error.code === error.TIMEOUT) errorMessage = 'Location request timed out. Try moving near a window or outdoors.';
-                    showOutput(errorMessage, true);
-                    navigator.geolocation.clearWatch(watchId);
+                    let errorMessage = 'An unknown error occurred.';
+                    if (error.code === error.PERMISSION_DENIED) errorMessage = 'You denied the request for Geolocation.';
+                    if (error.code === error.POSITION_UNAVAILABLE) errorMessage = 'Location information is unavailable.';
+                    if (error.code === error.TIMEOUT) errorMessage = 'The request to get user location timed out.';
+                    showOutput(systemHtml + errorMessage, true);
                 }, 
                 {
-                    enableHighAccuracy: true, // Forces usage of GPS/hardware sensors
-                    timeout: 20000,           // Gives it 20 seconds to establish a lock
-                    maximumAge: 0             // Rejects old cached location data completely
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
                 }
             );
         });
