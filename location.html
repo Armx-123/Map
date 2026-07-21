@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Triangulated Location Dashboard</title>
+    <title>Advanced Triangulation & Network Dashboard</title>
     
     <!-- Leaflet.js -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -15,7 +15,6 @@
         button { padding: 12px 24px; font-size: 16px; cursor: pointer; background: #1a73e8; color: white; border: none; border-radius: 6px; }
         button:disabled { background: #ccc; cursor: not-allowed; }
         
-        /* Layout Grid */
         .dashboard { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
         .panel-data { flex: 1; min-width: 300px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .panel-map { flex: 1.5; min-width: 300px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -24,25 +23,35 @@
         
         .status { margin-top: 15px; padding: 10px; background: #e8f0fe; color: #1a73e8; border-radius: 4px; font-weight: bold; display: none; }
         .error { background: #ffebee; color: #d32f2f; }
+        .warning { background: #fff3e0; color: #e65100; }
         
         .data-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
         .data-section h3 { margin-top: 0; font-size: 16px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
         .coord-list { font-family: monospace; font-size: 13px; color: #666; line-height: 1.6; }
         .highlight { font-weight: bold; color: #1a73e8; font-size: 15px; }
         .map-link { display: inline-block; margin-top: 10px; padding: 8px 12px; background: #34a853; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; }
+        
+        .vpn-alert { color: #d32f2f; font-weight: bold; }
+        .vpn-safe { color: #34a853; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h2>Advanced Location Triangulation</h2>
-        <button id="startBtn">Start 5-Point Analysis</button>
+        <h2>Advanced Triangulation & Network Dashboard</h2>
+        <button id="startBtn">Start System Analysis</button>
         <div id="statusMsg" class="status"></div>
     </div>
 
     <div class="dashboard">
         <!-- Left Side: Data -->
         <div class="panel-data">
+            
+            <div class="data-section" id="networkData">
+                <h3>Network Intelligence</h3>
+                <div id="networkOutput">Waiting for analysis...</div>
+            </div>
+
             <div class="data-section" id="deviceData">
                 <h3>System Data</h3>
                 <div id="deviceOutput">Waiting for analysis...</div>
@@ -50,7 +59,7 @@
 
             <div class="data-section">
                 <h3>Raw Sample Data (5 Points)</h3>
-                <div id="rawCoordinates" class="coord-list">Waiting for samples...</div>
+                <div id="rawCoordinates" class="coord-list">Waiting for samples...<br><small>(Infinite timeout enabled. May take time indoors.)</small></div>
             </div>
 
             <div class="data-section">
@@ -69,6 +78,7 @@
     <script>
         const startBtn = document.getElementById('startBtn');
         const statusMsg = document.getElementById('statusMsg');
+        const networkOutput = document.getElementById('networkOutput');
         const deviceOutput = document.getElementById('deviceOutput');
         const rawCoordinates = document.getElementById('rawCoordinates');
         const calculatedOutput = document.getElementById('calculatedOutput');
@@ -77,7 +87,6 @@
         let mapInstance = null;
         let watchId = null;
 
-        // Device Detection Logic
         function getDeviceDetails() {
             const ua = navigator.userAgent;
             let os = "Unknown OS";
@@ -97,19 +106,47 @@
             return { os, device };
         }
 
-        function showStatus(message, isError = false) {
-            statusMsg.style.display = 'block';
-            statusMsg.innerHTML = message;
-            statusMsg.className = isError ? 'status error' : 'status';
+        // Fetch IP intelligence data to detect VPNs
+        async function checkNetwork() {
+            try {
+                const response = await fetch('https://ipwho.is/');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const isVPN = data.security.vpn || data.security.proxy || data.security.tor;
+                    const vpnStatus = isVPN 
+                        ? `<span class="vpn-alert">⚠ ACTIVE (VPN/Proxy Detected)</span>` 
+                        : `<span class="vpn-safe">None Detected (Clean IP)</span>`;
+                    
+                    networkOutput.innerHTML = `
+                        <strong>IP Address:</strong> ${data.ip} <br>
+                        <strong>ISP:</strong> ${data.connection.isp} <br>
+                        <strong>VPN Status:</strong> ${vpnStatus}
+                    `;
+                } else {
+                    networkOutput.innerHTML = 'Failed to analyze network.';
+                }
+            } catch (error) {
+                networkOutput.innerHTML = 'Network intelligence blocked or unavailable.';
+            }
         }
 
-        startBtn.addEventListener('click', () => {
+        function showStatus(message, type = 'info') {
+            statusMsg.style.display = 'block';
+            statusMsg.innerHTML = message;
+            if (type === 'error') statusMsg.className = 'status error';
+            else if (type === 'warning') statusMsg.className = 'status warning';
+            else statusMsg.className = 'status';
+        }
+
+        startBtn.addEventListener('click', async () => {
             if (!navigator.geolocation) {
-                showStatus('Geolocation is not supported by your browser.', true);
+                showStatus('Geolocation is not supported by your browser.', 'error');
                 return;
             }
 
-            // Populate Device Data
+            // 1. Run Network & Device Analysis immediately
+            checkNetwork();
             const sys = getDeviceDetails();
             deviceOutput.innerHTML = `<strong>Device:</strong> ${sys.device} <br><strong>OS:</strong> ${sys.os}`;
 
@@ -123,8 +160,9 @@
                 mapInstance = null;
             }
 
-            showStatus('Opening secure location stream... Please allow the prompt.');
+            showStatus('Opening secure location stream... Waiting for hardware lock (No Timeout).');
 
+            // 2. Start Infinite Geolocation Stream
             watchId = navigator.geolocation.watchPosition(
                 (position) => {
                     if (samples.length >= 5) return;
@@ -135,9 +173,8 @@
                         acc: position.coords.accuracy
                     });
 
-                    // Update UI with raw data as it comes in
                     rawCoordinates.innerHTML += `Sample ${samples.length}: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)} (±${Math.round(position.coords.accuracy)}m)<br>`;
-                    showStatus(`Acquiring measurement ${samples.length} of 5...`);
+                    showStatus(`Hardware lock established. Acquiring measurement ${samples.length} of 5...`);
 
                     if (samples.length === 5) {
                         navigator.geolocation.clearWatch(watchId);
@@ -149,18 +186,22 @@
                 (error) => {
                     let errMsg = 'Unknown error.';
                     if (error.code === 1) errMsg = 'Permission denied by user.';
-                    if (error.code === 2) errMsg = 'Location unavailable. Check device GPS settings.';
-                    if (error.code === 3) errMsg = 'Location request timed out.';
-                    showStatus(errMsg, true);
+                    if (error.code === 2) errMsg = 'Location unavailable (Device sensors failing to establish a lock).';
+                    // Error 3 (Timeout) is physically impossible now since timeout is infinite
+                    
+                    showStatus(errMsg, 'error');
                     if (watchId) navigator.geolocation.clearWatch(watchId);
                     startBtn.disabled = false;
                 },
-                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                { 
+                    enableHighAccuracy: true, 
+                    timeout: Infinity, // The process will hang indefinitely until it gets a signal
+                    maximumAge: 0 
+                }
             );
         });
 
         function processDataAndMap() {
-            // 1. Math: Calculate the Centroid (Mean Center)
             const sumLat = samples.reduce((acc, val) => acc + val.lat, 0);
             const sumLon = samples.reduce((acc, val) => acc + val.lon, 0);
             const sumAcc = samples.reduce((acc, val) => acc + val.acc, 0);
@@ -171,7 +212,6 @@
 
             const mapsUrl = `https://www.google.com/maps?q=${avgLat},${avgLon}`;
 
-            // 2. Output the calculated data
             calculatedOutput.innerHTML = `
                 <span class="highlight">LAT: ${avgLat.toFixed(7)}</span><br>
                 <span class="highlight">LON: ${avgLon.toFixed(7)}</span><br>
@@ -179,7 +219,6 @@
                 <a href="${mapsUrl}" target="_blank" class="map-link">Open in Google Maps ↗</a>
             `;
 
-            // 3. Render the Map
             mapInstance = L.map('map').setView([avgLat, avgLon], 17);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -187,7 +226,6 @@
                 attribution: '© OpenStreetMap contributors'
             }).addTo(mapInstance);
 
-            // Draw the consolidated area (Average Accuracy)
             L.circle([avgLat, avgLon], {
                 color: '#1a73e8',
                 fillColor: '#1a73e8',
@@ -195,12 +233,11 @@
                 radius: avgAcc
             }).addTo(mapInstance);
 
-            // Draw the exact center dot
             L.circle([avgLat, avgLon], {
                 color: '#d32f2f',
                 fillColor: '#d32f2f',
                 fillOpacity: 1,
-                radius: 2 // Tiny red dot
+                radius: 2
             }).addTo(mapInstance);
         }
     </script>
