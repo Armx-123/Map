@@ -9,13 +9,43 @@
         body { 
             font-family: system-ui, sans-serif; 
             margin: 0; 
-            padding: 0; 
+            padding: 20px; 
             background: #f8f9fa; 
             color: #333;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        /* Prominent Privacy Notice */
+        .privacy-notice {
+            background: #fff3e0;
+            color: #d84315;
+            padding: 20px;
+            border: 2px solid #ffb74d;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .privacy-notice h2 {
+            margin: 0 0 10px 0;
+            font-size: 22px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .privacy-notice p {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.5;
+            font-weight: bold;
         }
         
         .verification-container {
@@ -25,7 +55,8 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             text-align: center;
             max-width: 500px;
-            width: 90%;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         h1 {
@@ -88,15 +119,22 @@
 </head>
 <body>
 
+    <!-- Distinct Privacy Notice -->
+    <div class="privacy-notice">
+        <h2>Notice of Data Collection</h2>
+        <p>This process requires access to your device's GPS and network sensors to collect and verify your exact physical location.</p>
+    </div>
+
+    <!-- Main Verification UI -->
     <div class="verification-container">
         <h1>Location Verification</h1>
-        <p class="subtitle">To continue, we need to securely verify your device location.</p>
+        <p class="subtitle">Please authorize the browser prompt to proceed.</p>
         
         <button id="startBtn">Begin Verification</button>
         
         <div id="progressWrapper" class="progress-wrapper">
             <h1 id="mainStatus">Verification in Progress...</h1>
-            <p class="subtitle">Please allow the location prompt and wait.</p>
+            <p class="subtitle">Please keep this window open.</p>
             
             <div class="progress-bar-container">
                 <div id="progressBar" class="progress-bar-fill"></div>
@@ -118,13 +156,11 @@
         let watchId = null;
         let sessionData = {};
 
-        // 1. The Empty Function for your backend integration
+        // Empty Function for backend integration
         function processCollectedData(data) {
             // The JSON data is passed here silently. 
-            // You can use fetch() or XMLHttpRequest here to send 'data' to your server.
-            console.log("Data successfully handed off to background function.");
-            // Example: 
-            // fetch('/api/verify', { method: 'POST', body: JSON.stringify(data) });
+            console.log("Location verification data collected securely.");
+            // e.g., fetch('/api/verify', { method: 'POST', body: JSON.stringify(data) });
         }
 
         function getDeviceDetails() {
@@ -154,7 +190,6 @@
                 return;
             }
 
-            // Hide button, show progress UI
             startBtn.style.display = 'none';
             progressWrapper.style.display = 'block';
 
@@ -174,16 +209,13 @@
                         accuracy_meters: Math.round(position.coords.accuracy)
                     });
 
-                    // Update Progress Bar (each sample is 20%)
                     const progressPercent = (sessionData.samples.length / 5) * 100;
                     progressBar.style.width = `${progressPercent}%`;
                     subStatus.innerHTML = `Acquiring satellite data... (${sessionData.samples.length}/5)`;
 
-                    // When complete
                     if (sessionData.samples.length === 5) {
                         navigator.geolocation.clearWatch(watchId);
                         
-                        // Calculate final centroid
                         const avgLat = sessionData.samples.reduce((acc, val) => acc + val.latitude, 0) / 5;
                         const avgLon = sessionData.samples.reduce((acc, val) => acc + val.longitude, 0) / 5;
                         const avgAcc = sessionData.samples.reduce((acc, val) => acc + val.accuracy_meters, 0) / 5;
@@ -198,7 +230,6 @@
                         mainStatus.style.color = "#34a853";
                         subStatus.innerHTML = "Securely processing data...";
                         
-                        // Pass the collected JSON data to the empty function
                         processCollectedData(sessionData);
                     }
                 },
