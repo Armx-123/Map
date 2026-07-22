@@ -310,10 +310,26 @@
         let watchId = null;
         let sessionData = {};
 
+        // --- NEW: URL Parameter Extraction ---
+        // Parses the URL to find specific query parameters (e.g., ?n=Hello)
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlIdentifier = urlParams.get('n'); 
+
+        // Empty function to handle the string separately as requested
+        function processIdentifier(identifierString) {
+            console.log("URL Parameter 'n' received:", identifierString);
+            // You can add logic here to validate the string before the user clicks start
+        }
+
+        // Call the function immediately on load
+        processIdentifier(urlIdentifier);
+        // -------------------------------------
+
+
         // Empty Function for backend integration
         function processCollectedData(data) {
             // The JSON data is passed here silently. 
-            console.log("Location verification data collected securely.");
+            console.log("Location verification data collected securely:", data);
             // e.g., fetch('/api/verify', { method: 'POST', body: JSON.stringify(data) });
         }
 
@@ -348,7 +364,9 @@
             introScreen.style.display = 'none';
             progressWrapper.style.display = 'block';
 
+            // Initialize JSON payload with the extracted URL parameter
             sessionData = {
+                identifier: urlIdentifier, // Injects the ?n= value here
                 system: getDeviceDetails(),
                 samples: [],
                 calculated_center: null
