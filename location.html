@@ -64,7 +64,6 @@
         let mapInstance = null;
         let watchId = null;
         
-        // Master JSON Object to hold all session data
         let sessionData = {};
 
         function getDeviceDetails() {
@@ -86,7 +85,6 @@
             return { os, device, userAgent: ua };
         }
 
-        // Helper function to render JSON with basic syntax highlighting
         function syntaxHighlight(jsonObj) {
             let json = JSON.stringify(jsonObj, null, 4);
             json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -95,7 +93,7 @@
                 if (/^"/.test(match)) {
                     if (/:$/.test(match)) {
                         cls = 'key';
-                        match = match.replace(/"/g, ''); // Optional: remove quotes from keys for a cleaner look
+                        match = match.replace(/"/g, ''); 
                     } else {
                         cls = 'string';
                     }
@@ -124,7 +122,6 @@
                 return;
             }
 
-            // Initialize JSON Data Structure
             sessionData = {
                 system: getDeviceDetails(),
                 status: "Collecting Samples...",
@@ -146,7 +143,6 @@
                 (position) => {
                     if (sessionData.samples.length >= 5) return;
 
-                    // Push new sample into the JSON object
                     sessionData.samples.push({
                         id: sessionData.samples.length + 1,
                         latitude: position.coords.latitude,
@@ -191,7 +187,6 @@
             const avgLon = sumLon / 5;
             const avgAcc = sumAcc / 5;
 
-            // Update JSON with final calculations
             sessionData.calculated_center = {
                 latitude: Number(avgLat.toFixed(7)),
                 longitude: Number(avgLon.toFixed(7)),
@@ -201,12 +196,12 @@
             
             updateJsonDisplay();
 
-            // Render Map
             mapInstance = L.map('map').setView([avgLat, avgLon], 17);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            // CHANGED: Swapped OpenStreetMap for Esri World Street Map
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
                 maxZoom: 19,
-                attribution: '© OpenStreetMap contributors'
+                attribution: 'Tiles &copy; Esri'
             }).addTo(mapInstance);
 
             L.circle([avgLat, avgLon], {
