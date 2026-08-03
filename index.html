@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Secure Location Verification</title>
     
+    <!-- QRious Library for Client-Side QR Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
     <style>
         body { 
             font-family: system-ui, sans-serif; 
@@ -20,6 +23,43 @@
             box-sizing: border-box;
         }
 
+        /* --- Application Content Wrapper --- */
+        #appContent {
+            display: none; /* Hidden until mobile is confirmed */
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        /* --- Desktop Block Wrapper --- */
+        #desktopBlock {
+            display: none; /* Hidden until desktop is confirmed */
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        #desktopBlock h1 {
+            color: #d32f2f;
+            margin-top: 0;
+        }
+
+        #desktopBlock p {
+            color: #555;
+            line-height: 1.5;
+            margin-bottom: 25px;
+        }
+
+        #qrCode {
+            margin: 0 auto;
+            border: 10px solid #f0f0f0;
+            border-radius: 8px;
+        }
+
         /* Prominent Privacy Notice */
         .privacy-notice {
             background: #fff3e0;
@@ -32,21 +72,11 @@
             width: 100%;
             text-align: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            box-sizing: border-box;
         }
 
-        .privacy-notice h2 {
-            margin: 0 0 10px 0;
-            font-size: 22px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .privacy-notice p {
-            margin: 0;
-            font-size: 16px;
-            line-height: 1.5;
-            font-weight: bold;
-        }
+        .privacy-notice h2 { margin: 0 0 10px 0; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
+        .privacy-notice p { margin: 0; font-size: 16px; line-height: 1.5; font-weight: bold; }
         
         .verification-container {
             background: white;
@@ -59,22 +89,11 @@
             box-sizing: border-box;
         }
 
-        h1 {
-            font-size: 24px;
-            color: #1a73e8;
-            margin-top: 0;
-            margin-bottom: 10px;
-        }
+        .verification-container h1 { font-size: 24px; color: #1a73e8; margin-top: 0; margin-bottom: 10px; }
+        p.subtitle { color: #666; margin-bottom: 25px; font-size: 15px; }
 
-        p.subtitle {
-            color: #666;
-            margin-bottom: 25px;
-            font-size: 15px;
-        }
-
-        /* Identifier Badge Styling */
         .identifier-badge {
-            display: none; /* Hidden until URL param is detected */
+            display: none;
             background: #e8f0fe;
             color: #1967d2;
             padding: 8px 16px;
@@ -82,241 +101,94 @@
             font-weight: bold;
             font-size: 14px;
             margin: 0 auto 25px auto;
-            display: inline-block;
             border: 1px solid #c2d7fa;
         }
 
         button { 
-            padding: 14px 28px; 
-            font-size: 16px; 
-            font-weight: bold;
-            cursor: pointer; 
-            background: #1a73e8; 
-            color: white; 
-            border: none; 
-            border-radius: 6px; 
+            padding: 14px 28px; font-size: 16px; font-weight: bold; cursor: pointer; 
+            background: #1a73e8; color: white; border: none; border-radius: 6px; 
             transition: background 0.2s;
         }
         button:hover { background: #1557b0; }
         button:disabled { background: #ccc; cursor: not-allowed; }
 
-        /* Progress Bar Styling */
-        .progress-wrapper {
-            display: none;
-            margin-top: 25px;
-        }
-        
-        .progress-bar-container {
-            width: 100%;
-            background-color: #e0e0e0;
-            border-radius: 8px;
-            overflow: hidden;
-            height: 12px;
-            margin-bottom: 10px;
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            background-color: #1a73e8;
-            width: 0%;
-            transition: width 0.4s ease;
-        }
-
-        .status-text {
-            font-size: 14px;
-            font-weight: bold;
-            color: #555;
-        }
-
+        .progress-wrapper { display: none; margin-top: 25px; }
+        .progress-bar-container { width: 100%; background-color: #e0e0e0; border-radius: 8px; overflow: hidden; height: 12px; margin-bottom: 10px; }
+        .progress-bar-fill { height: 100%; background-color: #1a73e8; width: 0%; transition: width 0.4s ease; }
+        .status-text { font-size: 14px; font-weight: bold; color: #555; }
         .error { color: #d32f2f; margin-top: 15px; font-weight: bold; }
 
-        /* Flattened Success Animation CSS */
-        .alert-popup-container {
-            text-align: center;
-            display: none; 
-        }
+        .alert-popup-container { text-align: center; display: none; }
+        .alert-popup-title { font-size: 30px; font-weight: bold; color: #4CAF50; margin-top: 15px; margin-bottom: 15px; z-index: 2; position: relative; }
+        .alert-popup-message { color: #777; font-size: 21px; font-weight: 300; line-height: 1.4; }
+        .success-checkmark { width: 80px; height: 80px; margin: 0 auto; }
+        .success-checkmark .check-icon { width: 80px; height: 80px; position: relative; border-radius: 50%; box-sizing: content-box; border: 4px solid #4CAF50; }
+        .success-checkmark .check-icon::before { top: 3px; left: -2px; width: 30px; transform-origin: 100% 50%; border-radius: 100px 0 0 100px; }
+        .success-checkmark .check-icon::after { top: 0; left: 30px; width: 60px; transform-origin: 0 50%; border-radius: 0 100px 100px 0; animation: rotate-circle 4.25s ease-in; }
+        .success-checkmark .check-icon::before, .success-checkmark .check-icon::after { content: ''; height: 100px; position: absolute; background: #FFFFFF; transform: rotate(-45deg); z-index: 2; }
+        .success-checkmark .check-icon .icon-line { height: 5px; background-color: #4CAF50; display: block; border-radius: 2px; position: absolute; z-index: 10; }
+        .success-checkmark .check-icon .icon-line.line-tip { top: 46px; left: 14px; width: 25px; transform: rotate(45deg); animation: icon-line-tip 0.75s; }
+        .success-checkmark .check-icon .icon-line.line-long { top: 38px; right: 8px; width: 47px; transform: rotate(-45deg); animation: icon-line-long 0.75s; }
+        .success-checkmark .check-icon .icon-circle { top: -4px; left: -4px; z-index: 10; width: 80px; height: 80px; border-radius: 50%; position: absolute; box-sizing: content-box; border: 4px solid rgba(76, 175, 80, .5); }
+        .success-checkmark .check-icon .icon-fix { top: 8px; width: 5px; left: 26px; z-index: 1; height: 85px; position: absolute; transform: rotate(-45deg); background-color: #FFFFFF; }
 
-        .alert-popup-title {
-            font-size: 30px;
-            font-weight: bold;
-            color: #4CAF50;
-            margin-top: 15px;
-            margin-bottom: 15px;
-            z-index: 2;
-            position: relative;
-        }
-
-        .alert-popup-message {
-            color: #777;
-            font-size: 21px;
-            font-weight: 300;
-            line-height: 1.4;
-        }
-
-        .success-checkmark {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto;
-        }
-
-        .success-checkmark .check-icon {
-            width: 80px;
-            height: 80px;
-            position: relative;
-            border-radius: 50%;
-            box-sizing: content-box;
-            border: 4px solid #4CAF50;
-        }
-
-        .success-checkmark .check-icon::before {
-            top: 3px;
-            left: -2px;
-            width: 30px;
-            transform-origin: 100% 50%;
-            border-radius: 100px 0 0 100px;
-        }
-
-        .success-checkmark .check-icon::after {
-            top: 0;
-            left: 30px;
-            width: 60px;
-            transform-origin: 0 50%;
-            border-radius: 0 100px 100px 0;
-            animation: rotate-circle 4.25s ease-in;
-        }
-
-        .success-checkmark .check-icon::before,
-        .success-checkmark .check-icon::after {
-            content: '';
-            height: 100px;
-            position: absolute;
-            background: #FFFFFF;
-            transform: rotate(-45deg);
-            z-index: 2;
-        }
-
-        .success-checkmark .check-icon .icon-line {
-            height: 5px;
-            background-color: #4CAF50;
-            display: block;
-            border-radius: 2px;
-            position: absolute;
-            z-index: 10;
-        }
-
-        .success-checkmark .check-icon .icon-line.line-tip {
-            top: 46px;
-            left: 14px;
-            width: 25px;
-            transform: rotate(45deg);
-            animation: icon-line-tip 0.75s;
-        }
-
-        .success-checkmark .check-icon .icon-line.line-long {
-            top: 38px;
-            right: 8px;
-            width: 47px;
-            transform: rotate(-45deg);
-            animation: icon-line-long 0.75s;
-        }
-
-        .success-checkmark .check-icon .icon-circle {
-            top: -4px;
-            left: -4px;
-            z-index: 10;
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            position: absolute;
-            box-sizing: content-box;
-            border: 4px solid rgba(76, 175, 80, .5);
-        }
-
-        .success-checkmark .check-icon .icon-fix {
-            top: 8px;
-            width: 5px;
-            left: 26px;
-            z-index: 1;
-            height: 85px;
-            position: absolute;
-            transform: rotate(-45deg);
-            background-color: #FFFFFF;
-        }
-
-        @keyframes rotate-circle {
-            0% { transform: rotate(-45deg); }
-            5% { transform: rotate(-45deg); }
-            12% { transform: rotate(-405deg); }
-            100% { transform: rotate(-405deg); }
-        }
-
-        @keyframes icon-line-tip {
-            0% { width: 0; left: 1px; top: 19px; }
-            54% { width: 0; left: 1px; top: 19px; }
-            70% { width: 50px; left: -8px; top: 37px; }
-            84% { width: 17px; left: 21px; top: 48px; }
-            100% { width: 25px; left: 14px; top: 45px; }
-        }
-
-        @keyframes icon-line-long {
-            0% { width: 0; right: 46px; top: 54px; }
-            65% { width: 0; right: 46px; top: 54px; }
-            84% { width: 55px; right: 0px; top: 35px; }
-            100% { width: 47px; right: 8px; top: 38px; }
-        }
+        @keyframes rotate-circle { 0% { transform: rotate(-45deg); } 5% { transform: rotate(-45deg); } 12% { transform: rotate(-405deg); } 100% { transform: rotate(-405deg); } }
+        @keyframes icon-line-tip { 0% { width: 0; left: 1px; top: 19px; } 54% { width: 0; left: 1px; top: 19px; } 70% { width: 50px; left: -8px; top: 37px; } 84% { width: 17px; left: 21px; top: 48px; } 100% { width: 25px; left: 14px; top: 45px; } }
+        @keyframes icon-line-long { 0% { width: 0; right: 46px; top: 54px; } 65% { width: 0; right: 46px; top: 54px; } 84% { width: 55px; right: 0px; top: 35px; } 100% { width: 47px; right: 8px; top: 38px; } }
     </style>
 </head>
 <body>
 
-    <!-- Distinct Privacy Notice -->
-    <div class="privacy-notice">
-        <h2>Notice of Data Collection</h2>
-        <p>This process requires access to your device's GPS and network sensors to collect and verify your exact physical location.</p>
+    <!-- Desktop Rejection Block -->
+    <div id="desktopBlock">
+        <h1>Method Not Allowed</h1>
+        <p>Location verification requires physical GPS hardware. Please continue on a mobile device by scanning this code.</p>
+        <canvas id="qrCode"></canvas>
     </div>
 
-    <!-- Main Verification UI -->
-    <div class="verification-container" id="mainContainer">
-        
-        <!-- Intro Screen -->
-        <div id="introScreen">
-            <h1>Location Verification</h1>
-            
-            <!-- SECURE TEXT DISPLAY FOR URL PARAMETER -->
-            <div id="identifierBadge" class="identifier-badge" style="display: none;"></div>
-            
-            <p class="subtitle">Please authorize the browser prompt to proceed.</p>
-            <button id="startBtn">Begin Verification</button>
-            <div id="errorMsg" class="error"></div>
-        </div>
-        
-        <!-- Loading Progress Screen -->
-        <div id="progressWrapper" class="progress-wrapper">
-            <h1>Verification in Progress...</h1>
-            <p class="subtitle">Please keep this window open.</p>
-            
-            <div class="progress-bar-container">
-                <div id="progressBar" class="progress-bar-fill"></div>
-            </div>
-            <div id="subStatus" class="status-text">Requesting hardware lock...</div>
+    <!-- Mobile Application Content -->
+    <div id="appContent">
+        <div class="privacy-notice">
+            <h2>Notice of Data Collection</h2>
+            <p>This process requires access to your device's GPS and network sensors to collect and verify your exact physical location.</p>
         </div>
 
-        <!-- Success Animation Popup -->
-        <div id="successPopup" class="alert-popup-container">
-            <div class="success-checkmark">
-                <div class="check-icon">
-                    <span class="icon-line line-tip"></span>
-                    <span class="icon-line line-long"></span>
-                    <div class="icon-circle"></div>
-                    <div class="icon-fix"></div>
+        <div class="verification-container" id="mainContainer">
+            <div id="introScreen">
+                <h1>Location Verification</h1>
+                <div id="identifierBadge" class="identifier-badge"></div>
+                <p class="subtitle">Please authorize the browser prompt to proceed.</p>
+                <button id="startBtn">Begin Verification</button>
+                <div id="errorMsg" class="error"></div>
+            </div>
+            
+            <div id="progressWrapper" class="progress-wrapper">
+                <h1>Verification in Progress...</h1>
+                <p class="subtitle">Please keep this window open.</p>
+                <div class="progress-bar-container">
+                    <div id="progressBar" class="progress-bar-fill"></div>
                 </div>
+                <div id="subStatus" class="status-text">Requesting hardware lock...</div>
             </div>
-            <div class="alert-popup-title">Verification Process Completed</div>
-            <div class="alert-popup-message">You can leave this site.</div>
-        </div>
 
+            <div id="successPopup" class="alert-popup-container">
+                <div class="success-checkmark">
+                    <div class="check-icon">
+                        <span class="icon-line line-tip"></span>
+                        <span class="icon-line line-long"></span>
+                        <div class="icon-circle"></div>
+                        <div class="icon-fix"></div>
+                    </div>
+                </div>
+                <div class="alert-popup-title">Verification Process Completed</div>
+                <div class="alert-popup-message">You can leave this site.</div>
+            </div>
+        </div>
     </div>
 
     <script>
+        const appContent = document.getElementById('appContent');
+        const desktopBlock = document.getElementById('desktopBlock');
         const startBtn = document.getElementById('startBtn');
         const introScreen = document.getElementById('introScreen');
         const progressWrapper = document.getElementById('progressWrapper');
@@ -329,31 +201,7 @@
         let watchId = null;
         let sessionData = {};
 
-        // --- URL Parameter Extraction & Safe Display ---
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlIdentifier = urlParams.get('n'); 
-
-        function processIdentifier(identifierString) {
-            console.log("URL Parameter 'n' received:", identifierString);
-            
-            if (identifierString && identifierString.trim() !== '') {
-                // XSS PREVENTION: We use textContent instead of innerHTML.
-                // This ensures the string is rendered purely as text, not as executable HTML/JS.
-                identifierBadge.textContent = `Verifying for: ${identifierString}`;
-                identifierBadge.style.display = 'inline-block';
-            }
-        }
-
-        // Run immediately on page load
-        processIdentifier(urlIdentifier);
-        // ----------------------------------------------
-
-        // Empty Function for backend integration
-        function processCollectedData(data) {
-            console.log("Location verification data collected securely:", data);
-            // e.g., fetch('/api/verify', { method: 'POST', body: JSON.stringify(data) });
-        }
-
+        // 1. Core Device Detection
         function getDeviceDetails() {
             const ua = navigator.userAgent;
             let os = "Unknown OS";
@@ -373,6 +221,47 @@
             return { os, device, userAgent: ua };
         }
 
+        // 2. Initialization & Validation Phase
+        function initializeApp() {
+            const sys = getDeviceDetails();
+            
+            // Block Desktops
+            if (sys.device === "Desktop") {
+                desktopBlock.style.display = 'block';
+                
+                // Generate QR Code with the current complete URL
+                new QRious({
+                    element: document.getElementById('qrCode'),
+                    value: window.location.href, // Captures exact link including ?n= parameters
+                    size: 200,
+                    level: 'H' // High error correction for easier scanning
+                });
+                return;
+            }
+
+            // Allow Mobile/Tablets
+            appContent.style.display = 'flex';
+            
+            // Extract & Display URL Parameters safely
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlIdentifier = urlParams.get('n'); 
+
+            if (urlIdentifier && urlIdentifier.trim() !== '') {
+                identifierBadge.textContent = `Verifying for: ${urlIdentifier}`;
+                identifierBadge.style.display = 'inline-block';
+            }
+        }
+
+        // Run Init immediately
+        initializeApp();
+
+        // 3. Backend Integration Placeholder
+        function processCollectedData(data) {
+            console.log("Location verification data collected securely:", data);
+            // e.g., fetch('/api/verify', { method: 'POST', body: JSON.stringify(data) });
+        }
+
+        // 4. Verification Logic
         startBtn.addEventListener('click', () => {
             errorMsg.innerHTML = '';
 
@@ -384,8 +273,10 @@
             introScreen.style.display = 'none';
             progressWrapper.style.display = 'block';
 
+            const urlParams = new URLSearchParams(window.location.search);
+
             sessionData = {
-                identifier: urlIdentifier,
+                identifier: urlParams.get('n'),
                 system: getDeviceDetails(),
                 samples: [],
                 calculated_center: null
