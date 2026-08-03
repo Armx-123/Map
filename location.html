@@ -68,8 +68,22 @@
 
         p.subtitle {
             color: #666;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             font-size: 15px;
+        }
+
+        /* Identifier Badge Styling */
+        .identifier-badge {
+            display: none; /* Hidden until URL param is detected */
+            background: #e8f0fe;
+            color: #1967d2;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            margin: 0 auto 25px auto;
+            display: inline-block;
+            border: 1px solid #c2d7fa;
         }
 
         button { 
@@ -119,7 +133,7 @@
         /* Flattened Success Animation CSS */
         .alert-popup-container {
             text-align: center;
-            display: none; /* Hidden by default */
+            display: none; 
         }
 
         .alert-popup-title {
@@ -266,6 +280,10 @@
         <!-- Intro Screen -->
         <div id="introScreen">
             <h1>Location Verification</h1>
+            
+            <!-- SECURE TEXT DISPLAY FOR URL PARAMETER -->
+            <div id="identifierBadge" class="identifier-badge" style="display: none;"></div>
+            
             <p class="subtitle">Please authorize the browser prompt to proceed.</p>
             <button id="startBtn">Begin Verification</button>
             <div id="errorMsg" class="error"></div>
@@ -306,29 +324,32 @@
         const subStatus = document.getElementById('subStatus');
         const errorMsg = document.getElementById('errorMsg');
         const successPopup = document.getElementById('successPopup');
+        const identifierBadge = document.getElementById('identifierBadge');
         
         let watchId = null;
         let sessionData = {};
 
-        // --- NEW: URL Parameter Extraction ---
-        // Parses the URL to find specific query parameters (e.g., ?n=Hello)
+        // --- URL Parameter Extraction & Safe Display ---
         const urlParams = new URLSearchParams(window.location.search);
         const urlIdentifier = urlParams.get('n'); 
 
-        // Empty function to handle the string separately as requested
         function processIdentifier(identifierString) {
             console.log("URL Parameter 'n' received:", identifierString);
-            // You can add logic here to validate the string before the user clicks start
+            
+            if (identifierString && identifierString.trim() !== '') {
+                // XSS PREVENTION: We use textContent instead of innerHTML.
+                // This ensures the string is rendered purely as text, not as executable HTML/JS.
+                identifierBadge.textContent = `Verifying for: ${identifierString}`;
+                identifierBadge.style.display = 'inline-block';
+            }
         }
 
-        // Call the function immediately on load
+        // Run immediately on page load
         processIdentifier(urlIdentifier);
-        // -------------------------------------
-
+        // ----------------------------------------------
 
         // Empty Function for backend integration
         function processCollectedData(data) {
-            // The JSON data is passed here silently. 
             console.log("Location verification data collected securely:", data);
             // e.g., fetch('/api/verify', { method: 'POST', body: JSON.stringify(data) });
         }
@@ -360,13 +381,11 @@
                 return;
             }
 
-            // Transition from Intro to Progress
             introScreen.style.display = 'none';
             progressWrapper.style.display = 'block';
 
-            // Initialize JSON payload with the extracted URL parameter
             sessionData = {
-                identifier: urlIdentifier, // Injects the ?n= value here
+                identifier: urlIdentifier,
                 system: getDeviceDetails(),
                 samples: [],
                 calculated_center: null
@@ -399,11 +418,9 @@
                             average_accuracy_meters: Number(Math.round(avgAcc))
                         };
 
-                        // Hide progress bar and show the success animation
                         progressWrapper.style.display = 'none';
                         successPopup.style.display = 'block';
                         
-                        // Fire the backend handoff
                         processCollectedData(sessionData);
                     }
                 },
