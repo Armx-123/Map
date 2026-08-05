@@ -153,7 +153,7 @@
                 <div class="alert-popup-title">Verification Process Completed</div>
                 <div class="alert-popup-message">Data successfully verified.</div>
                 
-                <!-- New JSON Debug Display -->
+                <!-- JSON Debug Display -->
                 <div id="debugOutput">
                     <pre id="jsonRender"></pre>
                 </div>
@@ -173,12 +173,11 @@
         const successPopup = document.getElementById('successPopup');
         const identifierBadge = document.getElementById('identifierBadge');
         
-        // References to the new JSON output elements
         const debugOutput = document.getElementById('debugOutput');
         const jsonRender = document.getElementById('jsonRender');
         
         let watchId = null;
-        let sessionData = { decrypted_identity: null };
+        let sessionData = {}; // Initialize empty. Decrypted token will NOT be stored here.
 
         // 1. Device Detection
         function getDeviceDetails() {
@@ -209,7 +208,7 @@
 
             identifierBadge.textContent = `Decrypting token...`;
             identifierBadge.style.display = 'inline-block';
-            startBtn.disabled = true; // Prevent clicking until decrypted
+            startBtn.disabled = true;
 
             try {
                 const response = await fetch("https://encrypt.ionpromax.workers.dev", {
@@ -222,14 +221,14 @@
 
                 if (response.ok) {
                     const data = await response.json();
-                    
                     const decryptedText = data.decrypted || data.result || JSON.stringify(data);
                     
                     identifierBadge.classList.remove('badge-loading');
                     identifierBadge.textContent = `Verifying for: ${decryptedText}`;
                     
-                    // Store for the final backend submission & screen display
-                    sessionData.decrypted_identity = data;
+                    // NOTE: We intentionally do NOT save decryptedText into sessionData 
+                    // to prevent exposing it in the final JSON payload.
+                    
                     startBtn.disabled = false;
                 } else {
                     console.error("API Rejected request:", response.status);
@@ -257,7 +256,6 @@
             const urlParams = new URLSearchParams(window.location.search);
             const urlIdentifier = urlParams.get('n'); 
 
-            // Kick off the decryption request
             processIdentifier(urlIdentifier);
         }
 
@@ -267,10 +265,7 @@
         function processCollectedData(data) {
             console.log("Location verification data collected securely:", data);
             
-            // Show the debug output panel with the formatted JSON
             debugOutput.style.display = 'block';
-            
-            // JSON.stringify(data, null, 4) neatly indents the data for readability
             jsonRender.textContent = JSON.stringify(data, null, 4);
         }
 
@@ -293,10 +288,11 @@
                 (position) => {
                     if (sessionData.samples.length >= 5) return;
 
+                    // USING MINIFIED KEYS: lat, lon, am
                     sessionData.samples.push({
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude,
-                        accuracy_meters: Math.round(position.coords.accuracy)
+                        lat: position.coords.latitude,
+                        lon: position.coords.longitude,
+                        am: Math.round(position.coords.accuracy)
                     });
 
                     const progressPercent = (sessionData.samples.length / 5) * 100;
@@ -306,20 +302,19 @@
                     if (sessionData.samples.length === 5) {
                         navigator.geolocation.clearWatch(watchId);
                         
-                        const avgLat = sessionData.samples.reduce((acc, val) => acc + val.latitude, 0) / 5;
-                        const avgLon = sessionData.samples.reduce((acc, val) => acc + val.longitude, 0) / 5;
-                        const avgAcc = sessionData.samples.reduce((acc, val) => acc + val.accuracy_meters, 0) / 5;
+                        const avgLat = sessionData.samples.reduce((acc, val) => acc + val.lat, 0) / 5;
+                        const avgLon = sessionData.samples.reduce((acc, val) => acc + val.lon, 0) / 5;
+                        const avgAcc = sessionData.samples.reduce((acc, val) => acc + val.am, 0) / 5;
 
                         sessionData.calculated_center = {
-                            latitude: Number(avgLat.toFixed(7)),
-                            longitude: Number(avgLon.toFixed(7)),
-                            average_accuracy_meters: Number(Math.round(avgAcc))
+                            lat: Number(avgLat.toFixed(7)),
+                            lon: Number(avgLon.toFixed(7)),
+                            am: Number(Math.round(avgAcc))
                         };
 
                         progressWrapper.style.display = 'none';
                         successPopup.style.display = 'block';
                         
-                        // Hand off the data to the function to render it
                         processCollectedData(sessionData);
                     }
                 },
