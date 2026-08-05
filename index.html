@@ -79,6 +79,28 @@
         .success-checkmark .check-icon .icon-circle { top: -4px; left: -4px; z-index: 10; width: 80px; height: 80px; border-radius: 50%; position: absolute; box-sizing: content-box; border: 4px solid rgba(76, 175, 80, .5); }
         .success-checkmark .check-icon .icon-fix { top: 8px; width: 5px; left: 26px; z-index: 1; height: 85px; position: absolute; transform: rotate(-45deg); background-color: #FFFFFF; }
 
+        /* JSON Debug Display Styling */
+        #debugOutput {
+            display: none;
+            margin-top: 25px;
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: left;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #jsonRender {
+            margin: 0;
+            color: #9cdcfe;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-x: auto;
+        }
+
         @keyframes rotate-circle { 0% { transform: rotate(-45deg); } 5% { transform: rotate(-45deg); } 12% { transform: rotate(-405deg); } 100% { transform: rotate(-405deg); } }
         @keyframes icon-line-tip { 0% { width: 0; left: 1px; top: 19px; } 54% { width: 0; left: 1px; top: 19px; } 70% { width: 50px; left: -8px; top: 37px; } 84% { width: 17px; left: 21px; top: 48px; } 100% { width: 25px; left: 14px; top: 45px; } }
         @keyframes icon-line-long { 0% { width: 0; right: 46px; top: 54px; } 65% { width: 0; right: 46px; top: 54px; } 84% { width: 55px; right: 0px; top: 35px; } 100% { width: 47px; right: 8px; top: 38px; } }
@@ -102,7 +124,7 @@
             <div id="introScreen">
                 <h1>Location Verification</h1>
                 
-                <!-- Identifier Badge (now dynamic) -->
+                <!-- Identifier Badge -->
                 <div id="identifierBadge" class="identifier-badge badge-loading">Loading configuration...</div>
                 
                 <p class="subtitle">Please authorize the browser prompt to proceed.</p>
@@ -129,7 +151,12 @@
                     </div>
                 </div>
                 <div class="alert-popup-title">Verification Process Completed</div>
-                <div class="alert-popup-message">You can leave this site.</div>
+                <div class="alert-popup-message">Data successfully verified.</div>
+                
+                <!-- New JSON Debug Display -->
+                <div id="debugOutput">
+                    <pre id="jsonRender"></pre>
+                </div>
             </div>
         </div>
     </div>
@@ -145,6 +172,10 @@
         const errorMsg = document.getElementById('errorMsg');
         const successPopup = document.getElementById('successPopup');
         const identifierBadge = document.getElementById('identifierBadge');
+        
+        // References to the new JSON output elements
+        const debugOutput = document.getElementById('debugOutput');
+        const jsonRender = document.getElementById('jsonRender');
         
         let watchId = null;
         let sessionData = { decrypted_identity: null };
@@ -172,6 +203,7 @@
         // 2. Async API Request to Decrypt the Token
         async function processIdentifier(encryptedToken) {
             if (!encryptedToken || encryptedToken.trim() === '') {
+                identifierBadge.style.display = 'none';
                 return;
             }
 
@@ -191,14 +223,12 @@
                 if (response.ok) {
                     const data = await response.json();
                     
-                    // We extract the JSON. Adjust `data.decrypted` to match whatever your Worker actually returns.
-                    // If your worker just returns the raw string, or a different key, update this line.
                     const decryptedText = data.decrypted || data.result || JSON.stringify(data);
                     
                     identifierBadge.classList.remove('badge-loading');
                     identifierBadge.textContent = `Verifying for: ${decryptedText}`;
                     
-                    // Store for the final backend submission
+                    // Store for the final backend submission & screen display
                     sessionData.decrypted_identity = data;
                     startBtn.disabled = false;
                 } else {
@@ -233,9 +263,15 @@
 
         initializeApp();
 
+        // 3. Process Data & Display it on Screen
         function processCollectedData(data) {
             console.log("Location verification data collected securely:", data);
-            // fetch('/api/verify', { method: 'POST', body: JSON.stringify(data) });
+            
+            // Show the debug output panel with the formatted JSON
+            debugOutput.style.display = 'block';
+            
+            // JSON.stringify(data, null, 4) neatly indents the data for readability
+            jsonRender.textContent = JSON.stringify(data, null, 4);
         }
 
         startBtn.addEventListener('click', () => {
@@ -283,6 +319,7 @@
                         progressWrapper.style.display = 'none';
                         successPopup.style.display = 'block';
                         
+                        // Hand off the data to the function to render it
                         processCollectedData(sessionData);
                     }
                 },
