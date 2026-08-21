@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sum Section</title>
+    <style>
+        body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.5; }
+        .panel { border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        button { padding: 10px 15px; cursor: pointer; background: #0070f3; color: white; border: none; border-radius: 5px; }
+        button:hover { background: #0051a2; }
+        code { background: #f4f4f4; padding: 5px; border-radius: 4px; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <h1>Sum Section</h1>
+
+    <div class="panel">
+        <h3>1. URL Parameter Check</h3>
+        <p>The value of 'r' from the URL is: <strong id="urlData">Not found</strong></p>
+    </div>
+
+    <div class="panel">
+        <h3>2. Secure API Test</h3>
+        <button onclick="getEncryptedData()">Fetch Encrypted Token</button>
+        <p><strong>Status:</strong> <span id="status">Waiting...</span></p>
+        <p><strong>Token:</strong><br><br> <code id="tokenDisplay">None</code></p>
+    </div>
+
+    <script>
+        // --- Feature 1: Read the URL Parameter ---
+        const params = new URLSearchParams(window.location.search);
+        const rValue = params.get('r');
+
+        if (rValue) {
+            document.getElementById('urlData').textContent = rValue;
+        }
+
+        // --- Feature 2: Call the Serverless API ---
+        async function getEncryptedData() {
+            const statusEl = document.getElementById('status');
+            const tokenEl = document.getElementById('tokenDisplay');
+
+            statusEl.textContent = "Fetching from /api/encrypt...";
+            tokenEl.textContent = "None";
+
+            try {
+                // Call the Vercel backend function
+                const response = await fetch('/api/encrypt');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                statusEl.textContent = "Success!";
+                tokenEl.textContent = data.token;
+                
+            } catch (error) {
+                console.error("Failed to fetch token:", error);
+                statusEl.textContent = "Error fetching token. Check the browser console.";
+            }
+        }
+    </script>
+</body>
+</html>
