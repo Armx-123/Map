@@ -1,0 +1,6 @@
+{
+  "name": "jasmine-verify",
+  "dependencies": {
+    "fernet": "^0.4.0"
+  }
+}
