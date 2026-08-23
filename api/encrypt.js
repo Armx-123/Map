@@ -1,4 +1,4 @@
-// api/crypto.js
+// api/encrypt.js
 const fernet = require('fernet');
 
 export default function handler(req, res) {
