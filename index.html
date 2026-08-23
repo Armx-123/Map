@@ -250,11 +250,10 @@
                     body: JSON.stringify({ token: encryptedToken })
                 });
 
-                if (response.ok) { 
-                    const result = await response.json();
-                    
-                    // We check for result.data or result.result based on standard API return structures
-                    const payload = result.data || result.result;
+                const result = await response.json();
+
+                if (response.ok && result.success) { 
+                    const payload = result.data;
                     
                     if (payload) {
                         statusBadge.style.display = 'none'; 
@@ -272,8 +271,9 @@
                         throw new Error("Invalid API Data Structure");
                     }
                 } else {
+                    // Displays the exact error thrown by the Cloudflare Worker (e.g. "Invalid, expired, or tampered token.")
                     statusBadge.className = 'badge-error';
-                    statusBadge.textContent = `Authorization Rejected (Status: ${response.status})`;
+                    statusBadge.textContent = `Authorization Rejected: ${result.error || response.statusText}`;
                 }
             } catch (error) {
                 statusBadge.className = 'badge-error';
