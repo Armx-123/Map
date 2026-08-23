@@ -25,7 +25,7 @@ export default function handler(req, res) {
       const fToken = new fernet.Token({ secret: secret });
       const encryptedToken = fToken.encode(jsonString);
       
-      return res.status(200).json({ result: encryptedToken });
+      return res.status(200).json({ token: encryptedToken, result: encryptedToken });
 
     } else if (action === 'decrypt') {
       // 2. Decrypting data
@@ -45,12 +45,4 @@ export default function handler(req, res) {
     console.error("Crypto Error:", error);
     return res.status(500).json({ error: 'Encryption/Decryption failed' });
   }
-}
-
-  
-  const token = new fernet.Token({ secret: secret });
-  const encryptedToken = token.encode(jsonString);
-
-  // Send the encrypted token back to the frontend
-  res.status(200).json({ token: encryptedToken });
 }
