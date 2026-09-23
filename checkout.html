@@ -69,6 +69,22 @@
         #progress-bar {
             transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s;
         }
+
+        .spinner {
+            border: 3px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top: 3px solid #000;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="text-black font-sans antialiased min-h-screen flex flex-col">
@@ -241,18 +257,86 @@
         }
 
         let toastTimeout;
+        
+        const GUMROAD_ACCESS_TOKEN = "g7kxgBdC3hU6FHjr8IewHdAi9gIe9GcIVJ77uXP9cmw";
+        let activePolls = {}; // Store intervals by productId
+
         function handlePurchase(event, productId, productName) {
             // Check if already bought to prevent redundant actions
             if (boughtItems.has(productId)) return;
+            if (activePolls[productId]) return; // Prevent multiple clicks spawning multiple intervals
             
-            // Add to tracked items
-            boughtItems.add(productId);
+            const btn = document.getElementById(`btn-${productId}`);
+            
+            // 1. Generate a random tracking ID for this specific click
+            const uniqueReferrer = "track_" + Math.random().toString(36).substring(2, 12);
+            
+            // 2. Construct the Gumroad link using the product ID (code)
+            const gumroadUrl = `https://emh1.gumroad.com/l/${productId}?referrer=${uniqueReferrer}`;
+            
+            // 3. Open in new tab
+            window.open(gumroadUrl, '_blank');
+            
+            // 4. Update UI to loading state
+            btn.innerHTML = '<span class="spinner"></span> Waiting...';
+            btn.classList.add('opacity-80', 'cursor-wait');
+            
+            // 5. Start polling Gumroad API
+            checkGumroadAPI(productId, uniqueReferrer, productName);
+            activePolls[productId] = setInterval(() => {
+                checkGumroadAPI(productId, uniqueReferrer, productName);
+            }, 5000);
+            
+            // 6. Stop polling after 10 minutes (timeout)
+            setTimeout(() => {
+                if (activePolls[productId]) {
+                    clearInterval(activePolls[productId]);
+                    delete activePolls[productId];
+                    resetButton(productId);
+                }
+            }, 600000);
+        }
+
+        async function checkGumroadAPI(productId, uniqueReferrer, productName) {
+            try {
+                const response = await fetch(`https://api.gumroad.com/v2/sales?access_token=${GUMROAD_ACCESS_TOKEN}`);
+                if (!response.ok) return;
+                
+                const data = await response.json();
+
+                if (data.success && data.sales) {
+                    // Search the API strictly for the sale containing our random tracking ID
+                    const matchingSale = data.sales.find(sale => {
+                        const isCorrectProduct = sale.product_permalink.includes(productId);
+                        const hasMatchingReferrer = sale.referrer === uniqueReferrer;
+                        
+                        return isCorrectProduct && hasMatchingReferrer;
+                    });
+
+                    if (matchingSale) {
+                        handleSuccessfulPurchase(productId, productName);
+                    }
+                }
+            } catch (error) {
+                console.error("Polling error:", error);
+            }
+        }
+
+        function handleSuccessfulPurchase(productId, productName) {
+            // Stop polling
+            if (activePolls[productId]) {
+                clearInterval(activePolls[productId]);
+                delete activePolls[productId];
+            }
+
+            if (boughtItems.has(productId)) return;
+            boughtItems.add(productId); // Add to tracked items
             
             // Update button UI
             const btn = document.getElementById(`btn-${productId}`);
             if (btn) {
-                btn.textContent = 'Purchased';
-                btn.classList.remove('bg-gumroad-pink', 'hover:bg-[#ffa9ed]');
+                btn.innerHTML = 'Purchased';
+                btn.classList.remove('bg-gumroad-pink', 'hover:bg-[#ffa9ed]', 'opacity-80', 'cursor-wait');
                 btn.classList.add('bg-gray-300', 'text-gray-600');
                 btn.disabled = true;
             }
@@ -270,6 +354,14 @@
             toastTimeout = setTimeout(() => {
                 toast.classList.remove('show');
             }, 3000);
+        }
+
+        function resetButton(productId) {
+            const btn = document.getElementById(`btn-${productId}`);
+            if (btn && !boughtItems.has(productId)) {
+                btn.innerHTML = 'Buy';
+                btn.classList.remove('opacity-80', 'cursor-wait');
+            }
         }
 
         // --- Existing URL Parameter Logic ---
