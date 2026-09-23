@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Creator Store - Light Theme</title>
+    <title>Creator Store - List View</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-    
+
     <script>
         tailwind.config = {
             theme: {
@@ -40,19 +40,20 @@
             background-size: 24px 24px;
         }
 
-        /* Smooth out transforms */
-        .brutal-card, .brutal-btn {
+        .brutal-btn {
             transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
-        
-        .brutal-card:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
-        }
 
-        .brutal-btn:active {
+        .brutal-btn:active:not(:disabled) {
             transform: translate(2px, 2px);
             box-shadow: 0px 0px 0px 0px rgba(0,0,0,1);
+        }
+
+        .brutal-btn:disabled {
+            cursor: not-allowed;
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px 0px rgba(0,0,0,1);
+            opacity: 0.7;
         }
 
         #toast {
@@ -63,6 +64,10 @@
         #toast.show {
             transform: translateY(0) scale(1);
             opacity: 1;
+        }
+        
+        #progress-bar {
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s;
         }
     </style>
 </head>
@@ -83,26 +88,26 @@
 
     <!-- Main Content -->
     <main class="flex-grow w-full max-w-4xl mx-auto px-4 sm:px-6 pb-24">
-        
+
         <!-- Hero Section -->
-        <section class="py-12 md:py-20">
-            <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 leading-tight">
+        <section class="py-12 md:py-16">
+            <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight mb-4 leading-tight">
                 Digital assets <br/><span class="bg-gumroad-yellow px-2 border-2 border-black inline-block -rotate-1 shadow-brutal">made simple.</span>
             </h1>
             <p class="text-xl md:text-2xl font-medium text-gray-800 max-w-2xl mb-10">
                 Discover tools, templates, and courses designed to elevate your creative workflow.
             </p>
-            
+
             <!-- Dynamic Features Section -->
-            <div class="flex flex-col sm:flex-row gap-6 mb-10 items-start">
-                <!-- URL Parameter Display Section (Hidden by default) -->
+            <div class="flex flex-col sm:flex-row gap-6 mb-10 items-start hidden" id="dynamic-features">
+                <!-- URL Parameter Display Section -->
                 <div id="url-message-container" class="hidden bg-white border-2 border-black rounded-xl p-6 shadow-brutal flex-1 w-full">
                     <p class="font-bold text-lg text-gray-600 mb-1">Message from URL ('r'):</p>
                     <p id="url-message-text" class="text-2xl font-extrabold text-gumroad-green break-all"></p>
                 </div>
 
                 <!-- Secure API Test Section -->
-                <div class="bg-white border-2 border-black rounded-xl p-6 shadow-brutal flex-1 w-full">
+                <div class="bg-white border-2 border-black rounded-xl p-6 shadow-brutal flex-1 w-full hidden">
                     <h3 class="font-bold text-xl mb-4">Secure API Test</h3>
                     <button onclick="getEncryptedData()" class="brutal-btn bg-[#b3b3fa] border-2 border-black text-black px-4 py-2 rounded-lg font-bold shadow-brutal-sm hover:bg-[#9b9bf8] mb-4 text-sm">
                         Fetch Encrypted Token
@@ -114,15 +119,32 @@
             </div>
         </section>
 
-        <!-- Products List -->
-        <section id="products-container" class="flex flex-col gap-6">
-            <!-- Populated by JavaScript -->
+        <!-- Products Section -->
+        <section id="store-section" class="flex flex-col gap-4">
+            
+            <!-- Progress Bar -->
+            <div class="mb-2">
+                <div class="flex justify-between items-end mb-3">
+                    <h2 class="text-2xl font-bold tracking-tight">Available Products</h2>
+                    <span id="progress-text" class="font-bold text-gray-700 text-lg">0 / 0 Bought</span>
+                </div>
+                <div class="w-full bg-white border-2 border-black rounded-full h-6 shadow-brutal-sm overflow-hidden flex">
+                    <div id="progress-bar" class="bg-gumroad-pink h-full border-r-2 border-black" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- List Container -->
+            <div class="bg-white border-2 border-black rounded-xl shadow-brutal overflow-hidden">
+                <div id="products-list" class="flex flex-col">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
         </section>
 
     </main>
 
     <!-- Footer -->
-    <footer class="border-t-2 border-black bg-white py-10 mt-auto">
+    <footer class="border-t-2 border-black bg-white py-8 mt-auto">
         <div class="max-w-4xl mx-auto px-6 text-center font-semibold text-gray-600">
             <p>&copy; 2026 CreatorSpace. Built for creators.</p>
         </div>
@@ -139,135 +161,143 @@
     </div>
 
     <script>
-        // Check for URL parameters and initialize features
+        // --- Setup Demo Data ---
+        // We inject a cookie if it doesn't exist so the provided exact parsing logic doesn't crash on empty state.
+        if (!document.cookie.includes('productsData=')) {
+            const demoProducts = [
+                { id: 1, title: "Supercharge UI Kit", price: "$49", imageBg: "bg-gumroad-pink", emoji: "🎨" },
+                { id: 2, title: "Notion Freelancer OS", price: "$29", imageBg: "bg-gumroad-yellow", emoji: "📓" },
+                { id: 3, title: "JS Snippet Library", price: "$15", imageBg: "bg-[#b3b3fa]", emoji: "💻" },
+                { id: 4, title: "Creator Marketing Ebook", price: "$39", imageBg: "bg-gumroad-green", emoji: "📈" },
+                { id: 5, title: "Figma Wireframe Pack", price: "$22", imageBg: "bg-orange-300", emoji: "📐" },
+                { id: 6, title: "SEO Growth Checklist", price: "$10", imageBg: "bg-blue-300", emoji: "🔍" },
+                { id: 7, title: "Video Editing LUTs", price: "$18", imageBg: "bg-purple-300", emoji: "🎬" },
+                { id: 8, title: "Email Copy Templates", price: "$25", imageBg: "bg-red-300", emoji: "✉️" }
+            ];
+            document.cookie = `productsData=${encodeURIComponent(JSON.stringify(demoProducts))}; path=/`;
+        }
+
+        // --- Read Products from Cookie (Exact requested logic) ---
+        let products = [];
+        try {
+            products = JSON.parse(decodeURIComponent(document.cookie.split('; ').find(row => row.startsWith('productsData=')).split('=')[1]));
+        } catch (error) {
+            console.error("Error parsing products from cookie:", error);
+            // Fallback empty array if parsing completely fails
+            products = [];
+        }
+
+        // --- State Management ---
+        let boughtItems = new Set();
+        const totalItems = products.length;
+
+        // Render Products as a compact list
+        const listContainer = document.getElementById('products-list');
+
+        if (products.length === 0) {
+            listContainer.innerHTML = `<div class="p-8 text-center text-gray-500 font-bold">No products found in cookies.</div>`;
+        } else {
+            products.forEach(product => {
+                // Ensure fallbacks for colors/emojis if missing in the cookie data
+                const bgClass = product.imageBg || 'bg-gray-200';
+                const emoji = product.emoji || '📦';
+                
+                const productHTML = `
+                    <div class="flex items-center justify-between p-4 sm:px-6 border-b-2 border-black last:border-b-0 hover:bg-gray-50 transition-colors" id="product-${product.id}">
+                        
+                        <!-- Icon & Title -->
+                        <div class="flex items-center gap-4 w-full">
+                            <div class="w-12 h-12 ${bgClass} border-2 border-black rounded-lg flex items-center justify-center text-2xl flex-shrink-0 shadow-brutal-sm">
+                                ${emoji}
+                            </div>
+                            <h3 class="font-bold text-lg sm:text-xl truncate pr-2">${product.title}</h3>
+                        </div>
+
+                        <!-- Price & Buy Button -->
+                        <div class="flex items-center gap-4 sm:gap-6 ml-auto pl-4">
+                            <span class="font-extrabold text-xl whitespace-nowrap">${product.price}</span>
+                            <button 
+                                id="btn-${product.id}"
+                                onclick="handlePurchase(event, '${product.id}', '${product.title.replace(/'/g, "\\'")}')" 
+                                class="brutal-btn bg-gumroad-pink border-2 border-black text-black px-5 py-2 rounded-lg font-bold shadow-brutal-sm hover:bg-[#ffa9ed] whitespace-nowrap">
+                                Buy
+                            </button>
+                        </div>
+                    </div>
+                `;
+                listContainer.insertAdjacentHTML('beforeend', productHTML);
+            });
+        }
+
+        // Initialize progress bar UI on load
+        updateProgressUI();
+
+        // --- Purchase Logic & Progress Updates ---
+        function updateProgressUI() {
+            const progressText = document.getElementById('progress-text');
+            const progressBar = document.getElementById('progress-bar');
+            
+            const count = boughtItems.size;
+            progressText.textContent = `${count} / ${totalItems} Bought`;
+            
+            const percentage = totalItems === 0 ? 0 : (count / totalItems) * 100;
+            progressBar.style.width = `${percentage}%`;
+            
+            // Change color to green when complete
+            if (percentage === 100) {
+                progressBar.classList.remove('bg-gumroad-pink', 'bg-gumroad-yellow');
+                progressBar.classList.add('bg-gumroad-green');
+            } else if (percentage > 50) {
+                progressBar.classList.remove('bg-gumroad-pink');
+                progressBar.classList.add('bg-gumroad-yellow');
+            }
+        }
+
+        let toastTimeout;
+        function handlePurchase(event, productId, productName) {
+            // Check if already bought to prevent redundant actions
+            if (boughtItems.has(productId)) return;
+            
+            // Add to tracked items
+            boughtItems.add(productId);
+            
+            // Update button UI
+            const btn = document.getElementById(`btn-${productId}`);
+            if (btn) {
+                btn.textContent = 'Purchased';
+                btn.classList.remove('bg-gumroad-pink', 'hover:bg-[#ffa9ed]');
+                btn.classList.add('bg-gray-300', 'text-gray-600');
+                btn.disabled = true;
+            }
+
+            // Update Progress Bar
+            updateProgressUI();
+
+            // Show Toast Notification
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            toastMessage.textContent = `Purchased: ${productName}`;
+            toast.classList.add('show');
+
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // --- Existing URL Parameter Logic ---
         document.addEventListener('DOMContentLoaded', () => {
-            // --- Feature 1: Read the URL Parameter ---
             const params = new URLSearchParams(window.location.search);
             const rValue = params.get('r');
 
             if (rValue) {
+                document.getElementById('dynamic-features').classList.remove('hidden');
                 const messageContainer = document.getElementById('url-message-container');
                 const messageText = document.getElementById('url-message-text');
-                
-                // URLSearchParams.get() handles decoding automatically, matching the snippet logic
                 messageText.textContent = rValue;
                 messageContainer.classList.remove('hidden');
             }
         });
-
-        // --- Feature 2: Call the Serverless API ---
-        async function getEncryptedData() {
-            const statusEl = document.getElementById('status');
-            const tokenEl = document.getElementById('tokenDisplay');
-
-            statusEl.textContent = "Fetching from /api/encrypt...";
-            tokenEl.textContent = "None";
-
-            try {
-                // Call the Vercel backend function
-                const response = await fetch('/api/encrypt');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                
-                statusEl.textContent = "Success!";
-                tokenEl.textContent = data.token;
-                
-            } catch (error) {
-                console.error("Failed to fetch token:", error);
-                statusEl.textContent = "Error fetching token. Check the browser console.";
-            }
-        }
-
-        // Product Data
-        const products = [
-            {
-                id: 1,
-                title: "Supercharge UI Kit",
-                description: "Over 200+ perfectly crafted components. Build interfaces at lightning speed with our comprehensive design system.",
-                price: "$49",
-                imageBg: "bg-gumroad-pink",
-                emoji: "🎨"
-            },
-            {
-                id: 2,
-                title: "Freelancer's Notion Dashboard",
-                description: "Track projects, invoices, and clients in one place. The ultimate operating system for independent creators.",
-                price: "$29",
-                imageBg: "bg-gumroad-yellow",
-                emoji: "📓"
-            },
-            {
-                id: 3,
-                title: "Code Snippet Library",
-                description: "100+ reusable JavaScript and CSS snippets. Stop rewriting the same boilerplate code over and over again.",
-                price: "$15",
-                imageBg: "bg-[#b3b3fa]", 
-                emoji: "💻"
-            },
-            {
-                id: 4,
-                title: "Creator Marketing Guide",
-                description: "A 50-page ebook detailing how to launch products, build an audience, and scale your creative business.",
-                price: "$39",
-                imageBg: "bg-gumroad-green",
-                emoji: "📈"
-            }
-        ];
-
-        // Render Products
-        const container = document.getElementById('products-container');
-
-        products.forEach(product => {
-            const productHTML = `
-                <div class="brutal-card bg-white border-2 border-black rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row gap-5 items-start sm:items-center justify-between shadow-brutal group cursor-pointer">
-                    
-                    <!-- Thumbnail & Content -->
-                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6 flex-grow w-full">
-                        <div class="w-full sm:w-24 h-40 sm:h-24 ${product.imageBg} border-2 border-black rounded-xl flex items-center justify-center text-4xl sm:text-3xl flex-shrink-0 shadow-brutal-sm">
-                            ${product.emoji}
-                        </div>
-                        <div class="flex-grow">
-                            <h3 class="font-bold text-2xl mb-2">${product.title}</h3>
-                            <p class="text-gray-700 font-medium leading-relaxed max-w-xl text-sm sm:text-base">${product.description}</p>
-                        </div>
-                    </div>
-
-                    <!-- Price & CTA -->
-                    <div class="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto gap-4 mt-2 sm:mt-0 pt-4 sm:pt-0 border-t-2 sm:border-t-0 border-black sm:border-none">
-                        <div class="text-2xl font-extrabold">${product.price}</div>
-                        
-                        <button onclick="handlePurchase(event, '${product.title.replace(/'/g, "\\'")}')" class="brutal-btn bg-gumroad-pink border-2 border-black text-black px-6 py-3 rounded-lg font-bold text-lg shadow-brutal w-full sm:w-auto whitespace-nowrap hover:bg-[#ffa9ed]">
-                            I want this
-                        </button>
-                    </div>
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', productHTML);
-        });
-
-        // Toast Notification Logic
-        let toastTimeout;
-        function handlePurchase(event, productName) {
-            // Prevent the card click if we click the button directly
-            event.stopPropagation();
-            
-            const toast = document.getElementById('toast');
-            const toastMessage = document.getElementById('toast-message');
-            
-            toastMessage.textContent = `Checkout: ${productName}`;
-            
-            toast.classList.add('show');
-            
-            clearTimeout(toastTimeout);
-            
-            toastTimeout = setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3500);
-        }
     </script>
 </body>
 </html>
