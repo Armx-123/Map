@@ -177,51 +177,61 @@
     </div>
 
     <script>
-        // --- Read Products from Cookie (Exact requested logic with error handling) ---
-        let products = null;
+        // --- Read Products from Cookie ---
+        // Expecting an array of URLs like: ["https://emh1.gumroad.com/l/koaoec", "https://emh1.gumroad.com/l/cbiam"]
+        let productUrls = [];
         try {
-            // Attempt to parse exactly as requested
-            products = JSON.parse(decodeURIComponent(document.cookie.split('; ').find(row => row.startsWith('productsData=')).split('=')[1]));
+            const cookieString = document.cookie.split('; ').find(row => row.startsWith('productsData='));
+            if (cookieString) {
+                const encodedData = cookieString.split('=')[1];
+                productUrls = JSON.parse(decodeURIComponent(encodedData));
+            }
         } catch (error) {
             console.warn("Could not find or parse 'productsData' cookie:", error);
-            // We leave products as null to trigger the error state below
         }
 
         // --- State Management ---
         let boughtItems = new Set();
-        // totalItems defaults to 0 if products is null
-        const totalItems = products ? products.length : 0;
+        const totalItems = productUrls ? productUrls.length : 0;
+        
+        // --- Store API Config ---
+        const GUMROAD_ACCESS_TOKEN = "g7kxgBdC3hU6FHjr8IewHdAi9gIe9GcIVJ77uXP9cmw";
+        let activePolls = {}; // Store polling intervals by productId
 
         // Render Products as a compact list
         const listContainer = document.getElementById('products-list');
 
-        if (!products || products.length === 0) {
-            // Show error message if no products exist or cookie parsing failed
+        if (!productUrls || productUrls.length === 0) {
             listContainer.innerHTML = `<div class="p-8 text-center text-gray-500 font-bold text-xl">Something went wrong... please try again later....</div>`;
         } else {
-            // Render the list items if products were successfully loaded
-            products.forEach(product => {
-                // Ensure fallbacks for colors/emojis if missing in the cookie data
-                const bgClass = product.imageBg || 'bg-gray-200';
-                const emoji = product.emoji || '📦';
+            productUrls.forEach((url, index) => {
+                // Extract the permalink (ID) from the URL (e.g., 'koaoec' from 'https://emh1.gumroad.com/l/koaoec')
+                const urlParts = url.split('/');
+                const productId = urlParts[urlParts.length - 1].split('?')[0]; // Handle potential existing query params
+                
+                // Fallback display data since the cookie only has URLs now
+                const title = `Digital Product ${index + 1} (${productId})`;
+                const bgClass = ['bg-gumroad-pink', 'bg-gumroad-yellow', 'bg-gumroad-green', 'bg-[#b3b3fa]'][index % 4];
+                const emoji = ['📦', '✨', '🚀', '🎨'][index % 4];
+                const price = "$--";
                 
                 const productHTML = `
-                    <div class="flex items-center justify-between p-4 sm:px-6 border-b-2 border-black last:border-b-0 hover:bg-gray-50 transition-colors" id="product-${product.id}">
+                    <div class="flex items-center justify-between p-4 sm:px-6 border-b-2 border-black last:border-b-0 hover:bg-gray-50 transition-colors" id="product-${productId}">
                         
                         <!-- Icon & Title -->
                         <div class="flex items-center gap-4 w-full">
                             <div class="w-12 h-12 ${bgClass} border-2 border-black rounded-lg flex items-center justify-center text-2xl flex-shrink-0 shadow-brutal-sm">
                                 ${emoji}
                             </div>
-                            <h3 class="font-bold text-lg sm:text-xl truncate pr-2">${product.title}</h3>
+                            <h3 class="font-bold text-lg sm:text-xl truncate pr-2">${title}</h3>
                         </div>
 
                         <!-- Price & Buy Button -->
                         <div class="flex items-center gap-4 sm:gap-6 ml-auto pl-4">
-                            <span class="font-extrabold text-xl whitespace-nowrap">${product.price}</span>
+                            <span class="font-extrabold text-xl whitespace-nowrap text-gray-400">${price}</span>
                             <button 
-                                id="btn-${product.id}"
-                                onclick="handlePurchase(event, '${product.id}', '${product.title.replace(/'/g, "\\'")}')" 
+                                id="btn-${productId}"
+                                onclick="handlePurchase(event, '${url}', '${productId}', '${title}')" 
                                 class="brutal-btn bg-gumroad-pink border-2 border-black text-black px-5 py-2 rounded-lg font-bold shadow-brutal-sm hover:bg-[#ffa9ed] whitespace-nowrap">
                                 Buy
                             </button>
@@ -235,7 +245,7 @@
         // Initialize progress bar UI on load
         updateProgressUI();
 
-        // --- Purchase Logic & Progress Updates ---
+        // --- Progress UI Updates ---
         function updateProgressUI() {
             const progressText = document.getElementById('progress-text');
             const progressBar = document.getElementById('progress-bar');
@@ -247,7 +257,7 @@
             progressBar.style.width = `${percentage}%`;
             
             // Change color to green when complete
-            if (percentage === 100) {
+            if (percentage === 100 && totalItems > 0) {
                 progressBar.classList.remove('bg-gumroad-pink', 'bg-gumroad-yellow');
                 progressBar.classList.add('bg-gumroad-green');
             } else if (percentage > 50) {
@@ -256,26 +266,25 @@
             }
         }
 
+        // --- Purchase Logic & Polling ---
         let toastTimeout;
         
-        const GUMROAD_ACCESS_TOKEN = "g7kxgBdC3hU6FHjr8IewHdAi9gIe9GcIVJ77uXP9cmw";
-        let activePolls = {}; // Store intervals by productId
-
-        function handlePurchase(event, productId, productName) {
-            // Check if already bought to prevent redundant actions
+        function handlePurchase(event, baseGumroadUrl, productId, productName) {
+            // Check if already bought or currently polling
             if (boughtItems.has(productId)) return;
-            if (activePolls[productId]) return; // Prevent multiple clicks spawning multiple intervals
+            if (activePolls[productId]) return; 
             
             const btn = document.getElementById(`btn-${productId}`);
             
-            // 1. Generate a random tracking ID for this specific click
+            // 1. Generate a random, invisible tracking ID
             const uniqueReferrer = "track_" + Math.random().toString(36).substring(2, 12);
             
-            // 2. Construct the Gumroad link using the product ID (code)
-            const gumroadUrl = `https://emh1.gumroad.com/l/${productId}?referrer=${uniqueReferrer}`;
+            // 2. Append the tracking ID to the base URL
+            const urlWithReferrer = new URL(baseGumroadUrl);
+            urlWithReferrer.searchParams.set('referrer', uniqueReferrer);
             
             // 3. Open in new tab
-            window.open(gumroadUrl, '_blank');
+            window.open(urlWithReferrer.toString(), '_blank');
             
             // 4. Update UI to loading state
             btn.innerHTML = '<span class="spinner"></span> Waiting...';
@@ -305,7 +314,7 @@
                 const data = await response.json();
 
                 if (data.success && data.sales) {
-                    // Search the API strictly for the sale containing our random tracking ID
+                    // Search the API strictly for the sale containing our random tracking ID and matching product
                     const matchingSale = data.sales.find(sale => {
                         const isCorrectProduct = sale.product_permalink.includes(productId);
                         const hasMatchingReferrer = sale.referrer === uniqueReferrer;
@@ -330,7 +339,7 @@
             }
 
             if (boughtItems.has(productId)) return;
-            boughtItems.add(productId); // Add to tracked items
+            boughtItems.add(productId); 
             
             // Update button UI
             const btn = document.getElementById(`btn-${productId}`);
