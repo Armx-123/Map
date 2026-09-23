@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Creator Store - List View</title>
+    <title>Checkout</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -79,7 +79,7 @@
             <div class="w-10 h-10 bg-gumroad-pink border-2 border-black rounded-full flex items-center justify-center font-bold text-xl shadow-brutal-sm">
                 C
             </div>
-            <span class="font-bold text-2xl tracking-tight">CreatorSpace</span>
+            <span class="font-bold text-2xl tracking-tight">Checkout</span>
         </div>
         <button class="font-semibold text-black hover:underline decoration-2 underline-offset-4">
             Login
@@ -92,7 +92,7 @@
         <!-- Hero Section -->
         <section class="py-12 md:py-16">
             <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight mb-4 leading-tight">
-                Digital assets <br/><span class="bg-gumroad-yellow px-2 border-2 border-black inline-block -rotate-1 shadow-brutal">made simple.</span>
+                One Last Step<br/><span class="bg-gumroad-yellow px-2 border-2 border-black inline-block -rotate-1 shadow-brutal">Checkout</span>
             </h1>
             <p class="text-xl md:text-2xl font-medium text-gray-800 max-w-2xl mb-10">
                 Discover tools, templates, and courses designed to elevate your creative workflow.
@@ -161,42 +161,29 @@
     </div>
 
     <script>
-        // --- Setup Demo Data ---
-        // We inject a cookie if it doesn't exist so the provided exact parsing logic doesn't crash on empty state.
-        if (!document.cookie.includes('productsData=')) {
-            const demoProducts = [
-                { id: 1, title: "Supercharge UI Kit", price: "$49", imageBg: "bg-gumroad-pink", emoji: "🎨" },
-                { id: 2, title: "Notion Freelancer OS", price: "$29", imageBg: "bg-gumroad-yellow", emoji: "📓" },
-                { id: 3, title: "JS Snippet Library", price: "$15", imageBg: "bg-[#b3b3fa]", emoji: "💻" },
-                { id: 4, title: "Creator Marketing Ebook", price: "$39", imageBg: "bg-gumroad-green", emoji: "📈" },
-                { id: 5, title: "Figma Wireframe Pack", price: "$22", imageBg: "bg-orange-300", emoji: "📐" },
-                { id: 6, title: "SEO Growth Checklist", price: "$10", imageBg: "bg-blue-300", emoji: "🔍" },
-                { id: 7, title: "Video Editing LUTs", price: "$18", imageBg: "bg-purple-300", emoji: "🎬" },
-                { id: 8, title: "Email Copy Templates", price: "$25", imageBg: "bg-red-300", emoji: "✉️" }
-            ];
-            document.cookie = `productsData=${encodeURIComponent(JSON.stringify(demoProducts))}; path=/`;
-        }
-
-        // --- Read Products from Cookie (Exact requested logic) ---
-        let products = [];
+        // --- Read Products from Cookie (Exact requested logic with error handling) ---
+        let products = null;
         try {
+            // Attempt to parse exactly as requested
             products = JSON.parse(decodeURIComponent(document.cookie.split('; ').find(row => row.startsWith('productsData=')).split('=')[1]));
         } catch (error) {
-            console.error("Error parsing products from cookie:", error);
-            // Fallback empty array if parsing completely fails
-            products = [];
+            console.warn("Could not find or parse 'productsData' cookie:", error);
+            // We leave products as null to trigger the error state below
         }
 
         // --- State Management ---
         let boughtItems = new Set();
-        const totalItems = products.length;
+        // totalItems defaults to 0 if products is null
+        const totalItems = products ? products.length : 0;
 
         // Render Products as a compact list
         const listContainer = document.getElementById('products-list');
 
-        if (products.length === 0) {
-            listContainer.innerHTML = `<div class="p-8 text-center text-gray-500 font-bold">No products found in cookies.</div>`;
+        if (!products || products.length === 0) {
+            // Show error message if no products exist or cookie parsing failed
+            listContainer.innerHTML = `<div class="p-8 text-center text-gray-500 font-bold text-xl">Something went wrong... please try again later....</div>`;
         } else {
+            // Render the list items if products were successfully loaded
             products.forEach(product => {
                 // Ensure fallbacks for colors/emojis if missing in the cookie data
                 const bgClass = product.imageBg || 'bg-gray-200';
