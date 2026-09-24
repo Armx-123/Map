@@ -222,9 +222,9 @@
             productUrls.forEach((url, index) => {
                 // Extract the permalink (ID) from the URL (e.g., 'koaoec' from 'https://emh1.gumroad.com/l/koaoec')
                 const urlParts = url.split('/');
-                const productId = urlParts[urlParts.length - 1].split('?')[0]; // Handle potential existing query params
+                const productId = urlParts[urlParts.length - 1].split('?')[0]; 
                 
-                // Fallback display data since the cookie only has URLs now
+                // Fallback display data
                 const title = `Digital Product ${index + 1} (${productId})`;
                 const bgClass = ['bg-gumroad-pink', 'bg-gumroad-yellow', 'bg-gumroad-green', 'bg-[#b3b3fa]'][index % 4];
                 const emoji = ['📦', '✨', '🚀', '🎨'][index % 4];
@@ -235,11 +235,12 @@
                 const btnText = isBought ? 'Purchased' : 'Buy';
                 const btnDisabled = isBought ? 'disabled' : '';
 
+                // MOBILE FIX: Added flex-col sm:flex-row and updated child containers to stack beautifully
                 const productHTML = `
-                    <div class="flex items-center justify-between p-4 sm:px-6 border-b-2 border-black last:border-b-0 hover:bg-gray-50 transition-colors" id="product-${productId}">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:px-6 border-b-2 border-black last:border-b-0 hover:bg-gray-50 transition-colors gap-4 sm:gap-0" id="product-${productId}">
                         
                         <!-- Icon & Title -->
-                        <div class="flex items-center gap-4 w-full">
+                        <div class="flex items-center gap-4 w-full sm:w-auto min-w-0 flex-1">
                             <div class="w-12 h-12 ${bgClass} border-2 border-black rounded-lg flex items-center justify-center text-2xl flex-shrink-0 shadow-brutal-sm">
                                 ${emoji}
                             </div>
@@ -247,12 +248,12 @@
                         </div>
 
                         <!-- Price & Buy Button -->
-                        <div class="flex items-center gap-4 sm:gap-6 ml-auto pl-4">
+                        <div class="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 w-full sm:w-auto mt-2 sm:mt-0 flex-shrink-0 pl-0 sm:pl-4">
                             <span id="price-${productId}" class="font-extrabold text-xl whitespace-nowrap text-gray-400">$--</span>
                             <button 
                                 id="btn-${productId}"
                                 onclick="handlePurchase(event, '${url}', '${productId}', '${title}')" 
-                                class="brutal-btn border-2 border-black px-5 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${btnClass}" ${btnDisabled}>
+                                class="brutal-btn flex-1 sm:flex-none border-2 border-black px-5 py-2 rounded-lg font-bold whitespace-nowrap transition-colors text-center ${btnClass}" ${btnDisabled}>
                                 ${btnText}
                             </button>
                         </div>
