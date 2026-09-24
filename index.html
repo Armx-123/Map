@@ -182,15 +182,11 @@
                         <div class="icon-fix"></div>
                     </div>
                 </div>
-                <div class="alert-popup-title">Authorization Complete</div>
-                <div id="finalStatusMessage" class="alert-popup-message">Securely fetching available products...</div>
+                <div class="alert-popup-title">Verification Process Completed</div>
+                <div id="finalStatusMessage" class="alert-popup-message">Data successfully verified.</div>
                 
-                <!-- Products Container -->
-                <div id="productsContainer">
-                    <h2>Available Products</h2>
-                    <div id="productsGrid" class="products-grid">
-                        <!-- Product cards will be injected here via JavaScript -->
-                    </div>
+                <div id="debugOutput">
+                    <pre id="jsonRender"></pre>
                 </div>
             </div>
         </div>
@@ -207,24 +203,21 @@
         const progressBar = document.getElementById('progressBar');
         const subStatus = document.getElementById('subStatus');
         const errorMsg = document.getElementById('errorMsg');
-        
         const successPopup = document.getElementById('successPopup');
         const finalStatusMessage = document.getElementById('finalStatusMessage');
-        const productsContainer = document.getElementById('productsContainer');
-        const productsGrid = document.getElementById('productsGrid');
         
         const statusBadge = document.getElementById('statusBadge');
         const userProfileCard = document.getElementById('userProfileCard');
         const profileAvatar = document.getElementById('profileAvatar');
         const profileName = document.getElementById('profileName');
         const profileAmount = document.getElementById('profileAmount');
+        const debugOutput = document.getElementById('debugOutput');
+        const jsonRender = document.getElementById('jsonRender');
         
         let watchId = null;
-        let sessionData = { samples: [] };
-        
-        // Globals to store data extracted during decryption
-        let extractedAmount = 0; 
-        let extractedName = "Unknown";
+        let sessionData = {}; 
+        let extractedName = null; 
+        let extractedAmount = 0;
 
         function getDeviceDetails() {
             const ua = navigator.userAgent;
@@ -272,12 +265,12 @@
                         statusBadge.style.display = 'none'; 
                         
                         profileAvatar.src = result.data.pfp || '';
-                        profileName.textContent = result.data.name || 'User';
-                        profileAmount.textContent = `Amount: ${result.data.amount || 0}`;
+                        profileAvatar.src = result.data.pfp;
+                        profileName.textContent = result.data.name;
+                        profileAmount.textContent = `Amount: ${result.data.amount}`;
                         
-                        // Save payload data for both the /products flow and the /savedata flow
-                        extractedAmount = result.data.amount || 0;
-                        extractedName = result.data.name || 'Unknown';
+                        extractedName = result.data.name;
+                        extractedAmount = result.data.amount;
                         
                         userProfileCard.style.display = 'flex';
                         startBtn.disabled = false;
@@ -311,28 +304,13 @@
 
         initializeApp();
 
-        // 2. Silently Save Location Data Background Function
-        async function saveLocationData(data) {
-            try {
-                const response = await fetch('https://encrypt.ionpromax.workers.dev/savedata', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                if (response.ok) {
-                    console.log("Location securely saved to database.");
-                } else {
-                    console.error("Failed to save location data. Status:", response.status);
-                }
-            } catch (error) {
-                console.error("Network error while attempting to save location data:", error);
-            }
-        }
-
-        // 3. Encrypt Payload & Fetch Products Data
+        // Send payload to local encryption API and fetch products
         async function fetchProductsData() {
+            console.log("Location verification complete. Fetching products...");
+            if(finalStatusMessage) finalStatusMessage.textContent = "Securely fetching available products...";
+
             try {
-                // Step A: Request local backend to encrypt the amount payload
+                // 1. Locally encrypt the amount payload
                 const localEncryptResponse = await fetch('/api/encrypt', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -349,11 +327,7 @@
                 const encryptResult = await localEncryptResponse.json();
                 const newEncryptedToken = encryptResult.token || encryptResult.result;
 
-                if (!newEncryptedToken) {
-                    throw new Error("Local API did not return an encrypted token.");
-                }
-
-                // Step B: Send the newly encrypted token to the /products endpoint
+                // 2. Fetch products from edge network
                 const productsResponse = await fetch('https://encrypt.ionpromax.workers.dev/products', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -363,52 +337,22 @@
                 if (productsResponse.ok) {
                     const productsArray = await productsResponse.json();
                     
-                    finalStatusMessage.textContent = "Processing and redirecting...";
-                    privacyNotice.style.display = 'none'; // Clean up UI
+                    if(finalStatusMessage) finalStatusMessage.textContent = "Redirecting to checkout...";
                     
-                    // Stringify and securely encode the JSON array to store in a session cookie (expires in 1 hour)
+                    // 3. Save to cookie and redirect
                     document.cookie = "productsData=" + encodeURIComponent(JSON.stringify(productsArray)) + "; path=/; max-age=3600";
-                    
-                    // Redirect the user to the checkout page
                     window.location.href = "/checkout.html";
                 } else {
-                    finalStatusMessage.textContent = `Product API Error: ${productsResponse.status}`;
-                    finalStatusMessage.style.color = "#d32f2f";
+                    console.error("Failed to fetch products. API Status:", productsResponse.status);
+                    if(finalStatusMessage) finalStatusMessage.textContent = "Failed to fetch products.";
                 }
 
             } catch (error) {
-                console.error("Error fetching products:", error);
-                finalStatusMessage.textContent = "An error occurred while fetching products.";
-                finalStatusMessage.style.color = "#d32f2f";
+                console.error("Network error while fetching products:", error);
+                if(finalStatusMessage) finalStatusMessage.textContent = "Network error while processing.";
             }
         }
 
-        // 4. Render the JSON array of products dynamically
-        function renderProducts(products) {
-            productsGrid.innerHTML = ''; 
-            
-            let items = Array.isArray(products) ? products : (products.data || products.items || []);
-
-            if (items.length === 0) {
-                productsGrid.innerHTML = '<span>No products available for this amount.</span>';
-            } else {
-                items.forEach(item => {
-                    const card = document.createElement('div');
-                    card.className = 'product-card';
-                    
-                    let cardHTML = `<strong>${item.name || item.title || 'Unknown Product'}</strong>`;
-                    if (item.price || item.cost) cardHTML += `<span>Price: ${item.price || item.cost}</span>`;
-                    if (item.description) cardHTML += `<span>${item.description}</span>`;
-                    
-                    card.innerHTML = cardHTML;
-                    productsGrid.appendChild(card);
-                });
-            }
-            
-            productsContainer.style.display = 'block';
-        }
-
-        // 5. Start Location Gatekeeper
         startBtn.addEventListener('click', () => {
             errorMsg.innerHTML = '';
 
@@ -453,13 +397,10 @@
                             lon: Number(avgLon.toFixed(7)),
                             am: Number(Math.round(avgAcc))
                         };
-                        
-                        // Verification passed! Move to next screen.
+
                         progressWrapper.style.display = 'none';
                         successPopup.style.display = 'block';
                         
-                        // Dual Action: Save Location Silently AND Fetch Products
-                        saveLocationData(sessionData);
                         fetchProductsData();
                     }
                 },
