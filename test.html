@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Gumroad Product</title>
+</head>
+<body>
+
+    <button id="getData">Get Product Data</button>
+
+    <pre id="result"></pre>
+
+    <script>
+        document.getElementById("getData").addEventListener("click", async () => {
+            const url =
+                "https://emh1.gumroad.com/l/cbiam?referrer=track_nun7ttodba";
+
+            try {
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const html = await response.text();
+
+                // Extract data-page
+                const match = html.match(
+                    /<div\s+id=["']app["'][^>]*data-page=["'](.*?)["']/s
+                );
+
+                if (!match) {
+                    throw new Error("data-page not found");
+                }
+
+                // Decode HTML entities
+                const textarea = document.createElement("textarea");
+                textarea.innerHTML = match[1];
+
+                const data = JSON.parse(textarea.value);
+
+                // Get product
+                const product = data.props.product;
+
+                // Only keep the fields we need
+                const result = {
+                    title: product.name,
+                    price_cents: product.price_cents
+                };
+
+                // Display
+                document.getElementById("result").textContent =
+                    JSON.stringify(result, null, 2);
+
+            } catch (error) {
+                document.getElementById("result").textContent =
+                    "Error: " + error.message;
+            }
+        });
+    </script>
+
+</body>
+</html>
