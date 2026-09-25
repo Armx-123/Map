@@ -178,13 +178,13 @@
 
     <script>
         // --- Read Products from Cookie ---
-        // Expecting an array of URLs like: ["https://emh1.gumroad.com/l/koaoec", "https://emh1.gumroad.com/l/cbiam"]
-        let productUrls = [];
+        // Expecting an array of objects like: [{"link":"https://emh1.gumroad.com/l/wsnmu", "name":"...", "amount":500}]
+        let productsData = [];
         try {
             const cookieString = document.cookie.split('; ').find(row => row.startsWith('productsData='));
             if (cookieString) {
                 const encodedData = cookieString.split('=')[1];
-                productUrls = JSON.parse(decodeURIComponent(encodedData));
+                productsData = JSON.parse(decodeURIComponent(encodedData));
             }
         } catch (error) {
             console.warn("Could not find or parse 'productsData' cookie:", error);
@@ -207,25 +207,26 @@
             console.warn("Failed to parse purchasedItems cookie:", e);
         }
 
-        const totalItems = productUrls ? productUrls.length : 0;
+        const totalItems = productsData ? productsData.length : 0;
         
-        // --- Store API Config ---
-        const GUMROAD_ACCESS_TOKEN = "g7kxgBdC3hU6FHjr8IewHdAi9gIe9GcIVJ77uXP9cmw";
         let activePolls = {}; // Store polling intervals by productId
 
         // Render Products as a compact list
         const listContainer = document.getElementById('products-list');
 
-        if (!productUrls || productUrls.length === 0) {
+        if (!productsData || productsData.length === 0) {
             listContainer.innerHTML = `<div class="p-8 text-center text-gray-500 font-bold text-xl">Something went wrong... please try again later....</div>`;
         } else {
-            productUrls.forEach((url, index) => {
+            productsData.forEach((product, index) => {
+                const url = product.link;
                 // Extract the permalink (ID) from the URL (e.g., 'koaoec' from 'https://emh1.gumroad.com/l/koaoec')
                 const urlParts = url.split('/');
                 const productId = urlParts[urlParts.length - 1].split('?')[0]; 
                 
-                // Fallback display data
-                const title = `Digital Product ${index + 1} (${productId})`;
+                // Get the real name and convert amount (cents) to dollars
+                const title = product.name || `Digital Product ${index + 1}`;
+                const priceDollars = product.amount ? (product.amount / 100).toFixed(2) : '--';
+
                 const bgClass = ['bg-gumroad-pink', 'bg-gumroad-yellow', 'bg-gumroad-green', 'bg-[#b3b3fa]'][index % 4];
                 const emoji = ['📦', '✨', '🚀', '🎨'][index % 4];
                 
@@ -244,15 +245,15 @@
                             <div class="w-12 h-12 ${bgClass} border-2 border-black rounded-lg flex items-center justify-center text-2xl flex-shrink-0 shadow-brutal-sm">
                                 ${emoji}
                             </div>
-                            <h3 class="font-bold text-lg sm:text-xl truncate pr-2">${title}</h3>
+                            <h3 class="font-bold text-lg sm:text-xl truncate pr-2" title="${title}">${title}</h3>
                         </div>
 
                         <!-- Price & Buy Button -->
                         <div class="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 w-full sm:w-auto mt-2 sm:mt-0 flex-shrink-0 pl-0 sm:pl-4">
-                            <span id="price-${productId}" class="font-extrabold text-xl whitespace-nowrap text-gray-400">$--</span>
+                            <span id="price-${productId}" class="font-extrabold text-xl whitespace-nowrap text-black">$${priceDollars}</span>
                             <button 
                                 id="btn-${productId}"
-                                onclick="handlePurchase(event, '${url}', '${productId}', '${title}')" 
+                                onclick="handlePurchase(event, '${url}', '${productId}', '${title.replace(/'/g, "\\'")}')" 
                                 class="brutal-btn flex-1 sm:flex-none border-2 border-black px-5 py-2 rounded-lg font-bold whitespace-nowrap transition-colors text-center ${btnClass}" ${btnDisabled}>
                                 ${btnText}
                             </button>
@@ -260,51 +261,7 @@
                     </div>
                 `;
                 listContainer.insertAdjacentHTML('beforeend', productHTML);
-                
-                // Fetch dynamic price for this product
-                fetchProductPrice(url, productId);
             });
-        }
-
-        // --- Fetch Price Function using specified scraping logic ---
-        async function fetchProductPrice(url, productId) {
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const html = await response.text();
-
-                // Find data-page
-                const match = html.match(/<div\s+id=["']app["'][^>]*data-page=["'](.*?)["']/s);
-                if (!match) {
-                    throw new Error("data-page not found");
-                }
-
-                // Decode HTML entities
-                const textarea = document.createElement("textarea");
-                textarea.innerHTML = match[1];
-                const dataPage = textarea.value;
-
-                // Parse embedded JSON
-                const data = JSON.parse(dataPage);
-
-                // Extract only what you need
-                const product = data.props.product;
-                
-                // Convert cents to dollars and format
-                const priceDollars = (product.price_cents / 100).toFixed(2);
-
-                const priceEl = document.getElementById(`price-${productId}`);
-                if (priceEl) {
-                    priceEl.textContent = `$${priceDollars}`;
-                    priceEl.classList.remove('text-gray-400');
-                    priceEl.classList.add('text-black');
-                }
-            } catch (error) {
-                console.error(`Failed to fetch price for ${productId}:`, error);
-            }
         }
 
         // Initialize progress bar UI on load
@@ -373,23 +330,23 @@
 
         async function checkGumroadAPI(productId, uniqueReferrer, productName) {
             try {
-                const response = await fetch(`https://api.gumroad.com/v2/sales?access_token=${GUMROAD_ACCESS_TOKEN}`);
+                const response = await fetch("https://encrypt.ionpromax.workers.dev/checkPurchase", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        product_permalink: productId,
+                        referrer: uniqueReferrer
+                    })
+                });
+                
                 if (!response.ok) return;
                 
-                const data = await response.json();
+                const result = await response.json();
 
-                if (data.success && data.sales) {
-                    // Search the API strictly for the sale containing our random tracking ID and matching product
-                    const matchingSale = data.sales.find(sale => {
-                        const isCorrectProduct = sale.product_permalink.includes(productId);
-                        const hasMatchingReferrer = sale.referrer === uniqueReferrer;
-                        
-                        return isCorrectProduct && hasMatchingReferrer;
-                    });
-
-                    if (matchingSale) {
-                        handleSuccessfulPurchase(productId, productName);
-                    }
+                if (result.purchased) {
+                    handleSuccessfulPurchase(productId, productName);
                 }
             } catch (error) {
                 console.error("Polling error:", error);
